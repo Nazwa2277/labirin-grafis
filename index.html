@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Maze Escape 3D — Horror with A* Pathfinding</title>
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+
+  <!-- ============================== -->
+  <!-- CANVAS THREE.JS                -->
+  <!-- ============================== -->
+  <canvas id="game-canvas"></canvas>
+
+  <!-- ============================== -->
+  <!-- CROSSHAIR                      -->
+  <!-- ============================== -->
+  <div id="crosshair">+</div>
+
+  <!-- ============================== -->
+  <!-- HUD (Heads Up Display)         -->
+  <!-- ============================== -->
+  <div id="hud" class="hidden">
+    <div id="hud-top-left">
+      <div id="hud-timer">⏱ 02:00</div>
+      <div id="hud-key-status">🔑 Kunci: <span id="key-status-text">Belum Ditemukan</span></div>
+    </div>
+    <div id="hud-top-right">
+      <div id="hud-enemy-status">👹 Monster: <span id="enemy-status-text">Tenang</span></div>
+      <div id="hud-fps">FPS: <span id="fps-counter">60</span></div>
+    </div>
+    <div id="hud-bottom-center">
+      <div id="hud-hint">WASD: Bergerak | Mouse: Lihat | Shift: Lari | F: Senter | ESC: Pause</div>
+    </div>
+    <!-- Minimap di pojok kanan bawah -->
+    <div id="hud-bottom-right">
+      <canvas id="minimap-canvas" width="150" height="150"></canvas>
+    </div>
+    <!-- Vignette merah saat monster dekat -->
+    <div id="danger-vignette"></div>
+  </div>
+
+  <!-- ============================== -->
+  <!-- START SCREEN                   -->
+  <!-- ============================== -->
+  <div id="start-screen" class="overlay-screen">
+    <div class="screen-content">
+      <h1 class="game-title">MAZE ESCAPE <span class="title-3d">3D</span></h1>
+      <p class="game-subtitle">Temukan kunci. Hindari monster. Keluar hidup-hidup.</p>
+      <div class="menu-divider"></div>
+      <button id="btn-start" class="menu-btn">▶ MULAI PERMAINAN</button>
+      <p class="game-instructions">
+        Gunakan <b>WASD</b> untuk bergerak, <b>Mouse</b> untuk melihat sekitar,
+        <b>Shift</b> untuk berlari, dan <b>F</b> untuk menyalakan senter.<br/>
+        Monster akan mengejarmu menggunakan algoritma <b>A* Pathfinding</b> begitu kamu masuk radiusnya.
+      </p>
+      <p class="credit-text">UAS Grafis Komputer — Three.js Project</p>
+    </div>
+  </div>
+
+  <!-- ============================== -->
+  <!-- PAUSE MENU                     -->
+  <!-- ============================== -->
+  <div id="pause-screen" class="overlay-screen hidden">
+    <div class="screen-content">
+      <h2 class="screen-heading">⏸ JEDA</h2>
+      <div class="menu-divider"></div>
+      <button id="btn-resume" class="menu-btn">▶ Lanjutkan</button>
+      <button id="btn-restart-pause" class="menu-btn">↻ Ulangi Permainan</button>
+    </div>
+  </div>
+
+  <!-- ============================== -->
+  <!-- VICTORY SCREEN                 -->
+  <!-- ============================== -->
+  <div id="victory-screen" class="overlay-screen hidden">
+    <div class="screen-content">
+      <h2 class="screen-heading victory-heading">🏆 KAMU BERHASIL KABUR!</h2>
+      <p id="victory-time-text" class="result-detail">Waktu tersisa: 00:00</p>
+      <div class="menu-divider"></div>
+      <button id="btn-restart-victory" class="menu-btn">↻ Main Lagi</button>
+    </div>
+  </div>
+
+  <!-- ============================== -->
+  <!-- GAME OVER SCREEN                -->
+  <!-- ============================== -->
+  <div id="gameover-screen" class="overlay-screen hidden">
+    <div class="screen-content">
+      <h2 class="screen-heading gameover-heading" id="gameover-heading">💀 GAME OVER</h2>
+      <p id="gameover-reason-text" class="result-detail">Kamu tertangkap monster.</p>
+      <div class="menu-divider"></div>
+      <button id="btn-restart-gameover" class="menu-btn">↻ Coba Lagi</button>
+    </div>
+  </div>
+
+  <!-- ============================== -->
+  <!-- LOADING SCREEN                 -->
+  <!-- ============================== -->
+  <div id="loading-screen" class="overlay-screen">
+    <div class="screen-content">
+      <h2 class="screen-heading">Memuat Aset...</h2>
+      <div class="loading-bar-track">
+        <div id="loading-bar-fill"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============================== -->
+  <!-- IMPORT MAP (Three.js via CDN)   -->
+  <!-- ============================== -->
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+      "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/",
+      "lil-gui": "https://unpkg.com/lil-gui@0.19/dist/lil-gui.esm.min.js"
+    }
+  }
+  </script>
+
+  <script type="module" src="js/main.js"></script>
+</body>
+</html>

@@ -1,0 +1,365 @@
+/* ===================================================
+   MAZE ESCAPE 3D — STYLESHEET
+   Tema: Horror / Found-footage / Survival
+=================================================== */
+
+@import url('https://fonts.googleapis.com/css2?family=Creepster&family=Courier+Prime:wght@400;700&display=swap');
+
+:root {
+  --color-blood: #8a0303;
+  --color-blood-bright: #c91f1f;
+  --color-bg-dark: #050505;
+  --color-text: #e8e0d8;
+  --color-text-dim: #a89e94;
+  --font-title: 'Creepster', cursive;
+  --font-mono: 'Courier Prime', monospace;
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+html, body {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background: #000;
+  font-family: var(--font-mono);
+  color: var(--color-text);
+  cursor: default;
+}
+
+#game-canvas {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+  outline: none;
+}
+
+.hidden {
+  display: none !important;
+}
+
+/* ===================================================
+   CROSSHAIR
+=================================================== */
+#crosshair {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  color: rgba(255, 255, 255, 0.75);
+  font-size: 18px;
+  font-weight: bold;
+  pointer-events: none;
+  z-index: 10;
+  text-shadow: 0 0 4px rgba(0,0,0,0.9);
+}
+
+/* ===================================================
+   HUD
+=================================================== */
+#hud {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 9;
+  font-family: var(--font-mono);
+}
+
+#hud-top-left {
+  position: absolute;
+  top: 20px;
+  left: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+#hud-top-right {
+  position: absolute;
+  top: 20px;
+  right: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  text-align: right;
+}
+
+#hud-timer,
+#hud-key-status,
+#hud-enemy-status,
+#hud-fps {
+  background: rgba(10, 8, 8, 0.55);
+  border: 1px solid rgba(138, 3, 3, 0.5);
+  padding: 6px 14px;
+  border-radius: 4px;
+  font-size: 15px;
+  letter-spacing: 1px;
+  backdrop-filter: blur(2px);
+}
+
+#hud-timer {
+  font-size: 20px;
+  font-weight: bold;
+  color: var(--color-text);
+  border-color: rgba(255,255,255,0.15);
+}
+
+#hud-timer.timer-warning {
+  color: var(--color-blood-bright);
+  border-color: var(--color-blood-bright);
+  animation: pulse-warning 0.8s infinite;
+}
+
+#key-status-text {
+  color: #d4af37;
+  font-weight: bold;
+}
+#key-status-text.found {
+  color: #6fff8f;
+}
+
+#enemy-status-text {
+  color: var(--color-text-dim);
+  font-weight: bold;
+}
+#enemy-status-text.alert {
+  color: var(--color-blood-bright);
+  animation: pulse-warning 0.5s infinite;
+}
+
+#hud-bottom-center {
+  position: absolute;
+  bottom: 18px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 12px;
+  color: var(--color-text-dim);
+  background: rgba(0,0,0,0.4);
+  padding: 5px 14px;
+  border-radius: 4px;
+  white-space: nowrap;
+}
+
+#hud-bottom-right {
+  position: absolute;
+  bottom: 20px;
+  right: 24px;
+  background: rgba(10, 8, 8, 0.65);
+  border: 1px solid rgba(138, 3, 3, 0.5);
+  padding: 6px;
+  border-radius: 6px;
+  backdrop-filter: blur(2px);
+  box-shadow: 0 0 10px rgba(0, 0, 0, 0.8);
+}
+
+#minimap-canvas {
+  display: block;
+  width: 150px;
+  height: 150px;
+  border-radius: 4px;
+}
+
+@keyframes pulse-warning {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.45; }
+}
+
+/* Vignette merah ketika monster mendekat */
+#danger-vignette {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  box-shadow: inset 0 0 0px 0px rgba(150, 0, 0, 0);
+  transition: box-shadow 0.4s ease;
+  opacity: 0;
+}
+#danger-vignette.active {
+  opacity: 1;
+  box-shadow: inset 0 0 220px 60px rgba(150, 0, 0, 0.55);
+  animation: heartbeat-vignette 1s infinite;
+}
+
+@keyframes heartbeat-vignette {
+  0%, 100% { box-shadow: inset 0 0 220px 60px rgba(150, 0, 0, 0.45); }
+  50% { box-shadow: inset 0 0 260px 90px rgba(150, 0, 0, 0.65); }
+}
+
+/* ===================================================
+   OVERLAY SCREENS (Start / Pause / Victory / GameOver)
+=================================================== */
+.overlay-screen {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background:
+    radial-gradient(ellipse at center, rgba(20,0,0,0.7) 0%, rgba(0,0,0,0.95) 75%),
+    #000;
+  text-align: center;
+  animation: fade-in 0.4s ease;
+}
+
+@keyframes fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.screen-content {
+  max-width: 560px;
+  padding: 40px;
+}
+
+.game-title {
+  font-family: var(--font-title);
+  font-size: 64px;
+  color: var(--color-blood-bright);
+  text-shadow:
+    0 0 10px rgba(201, 31, 31, 0.8),
+    0 0 30px rgba(201, 31, 31, 0.5),
+    3px 3px 0 #000;
+  letter-spacing: 4px;
+  line-height: 1;
+}
+
+.title-3d {
+  color: var(--color-text);
+  text-shadow: 0 0 10px rgba(255,255,255,0.4), 3px 3px 0 #000;
+}
+
+.game-subtitle {
+  margin-top: 14px;
+  color: var(--color-text-dim);
+  font-size: 15px;
+  letter-spacing: 1px;
+}
+
+.menu-divider {
+  width: 80px;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, var(--color-blood), transparent);
+  margin: 24px auto;
+}
+
+.menu-btn {
+  display: block;
+  width: 100%;
+  margin: 10px 0;
+  padding: 14px 24px;
+  font-family: var(--font-mono);
+  font-size: 16px;
+  font-weight: bold;
+  letter-spacing: 2px;
+  color: var(--color-text);
+  background: rgba(138, 3, 3, 0.15);
+  border: 1px solid var(--color-blood);
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.menu-btn:hover {
+  background: rgba(138, 3, 3, 0.55);
+  border-color: var(--color-blood-bright);
+  box-shadow: 0 0 18px rgba(201, 31, 31, 0.5);
+  transform: translateY(-1px);
+}
+
+.menu-btn:active {
+  transform: translateY(0px) scale(0.98);
+}
+
+.game-instructions {
+  margin-top: 22px;
+  font-size: 12.5px;
+  line-height: 1.7;
+  color: var(--color-text-dim);
+}
+
+.game-instructions b {
+  color: var(--color-text);
+}
+
+.credit-text {
+  margin-top: 28px;
+  font-size: 11px;
+  color: #5a5450;
+  letter-spacing: 1px;
+}
+
+.screen-heading {
+  font-family: var(--font-title);
+  font-size: 42px;
+  letter-spacing: 2px;
+  color: var(--color-text);
+  text-shadow: 3px 3px 0 #000;
+}
+
+.victory-heading {
+  color: #d4af37;
+  text-shadow: 0 0 20px rgba(212, 175, 55, 0.7), 3px 3px 0 #000;
+}
+
+.gameover-heading {
+  color: var(--color-blood-bright);
+  text-shadow: 0 0 20px rgba(201, 31, 31, 0.8), 3px 3px 0 #000;
+}
+
+.result-detail {
+  margin-top: 14px;
+  font-size: 15px;
+  color: var(--color-text-dim);
+}
+
+/* ===================================================
+   LOADING SCREEN
+=================================================== */
+.loading-bar-track {
+  width: 320px;
+  height: 8px;
+  margin: 24px auto 0;
+  background: rgba(255,255,255,0.08);
+  border: 1px solid rgba(255,255,255,0.15);
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+#loading-bar-fill {
+  width: 0%;
+  height: 100%;
+  background: linear-gradient(90deg, var(--color-blood), var(--color-blood-bright));
+  transition: width 0.25s ease;
+}
+
+/* ===================================================
+   LIL-GUI THEME OVERRIDE (sedikit sentuhan horror)
+=================================================== */
+.lil-gui {
+  --background-color: #110d0d;
+  --widget-color: #2a1414;
+  --focus-color: #8a0303;
+  --hover-color: #3a1c1c;
+  --font-size: 12px;
+  --title-background-color: #1a0d0d;
+  --title-text-color: #e8e0d8;
+  z-index: 50 !important;
+}
+
+/* ===================================================
+   RESPONSIVE TWEAKS
+=================================================== */
+@media (max-width: 700px) {
+  .game-title { font-size: 42px; }
+  .screen-content { padding: 20px; }
+  #hud-top-left, #hud-top-right { font-size: 11px; }
+}
