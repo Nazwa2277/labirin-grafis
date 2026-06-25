@@ -1,20 +1,5 @@
-/**
- * =========================================================================
- *  main.js
- * =========================================================================
- *  Entry point utama. Bertanggung jawab untuk:
- *   - Inisialisasi scene, kamera, renderer Three.js
- *   - Inisialisasi lighting & fog
- *   - Inisialisasi semua modul game (Maze, Player, Enemy, Key, Door,
- *     ParticleSystem, GUI)
- *   - Mengelola state mesin permainan (Start, Playing, Paused, Victory,
- *     GameOver) dan transisi antar UI screen
- *   - Game loop utama (render + update)
- * =========================================================================
- */
-
 import * as THREE from 'three';
-import { Maze, PLAYER_SPAWN, ENEMY_SPAWN, KEY_POSITION, DOOR_POSITION } from './maze.js';
+import { Maze, PLAYER_SPAWN, ENEMY_SPAWN, KEY_POSITION, DOOR_POSITION, getRandomWalkableCell, gridToWorld } from './maze.js';
 import { Player } from './player.js';
 import { Enemy } from './enemy.js';
 import { GameKey } from './key.js';
@@ -24,9 +9,6 @@ import { createGUI } from './gui.js';
 import { Minimap } from './minimap.js';
 import { AudioManager } from './audio.js';
 
-// =========================================================================
-// STATE MESIN PERMAINAN
-// =========================================================================
 const GameState = {
   START: 'START',
   PLAYING: 'PLAYING',
@@ -59,10 +41,6 @@ class MazeEscapeGame {
     this._hideLoadingScreen();
     this._animate();
   }
-
-  // -----------------------------------------------------------------
-  // SETUP
-  // -----------------------------------------------------------------
 
   _cacheDOM() {
     this.dom = {
@@ -121,13 +99,10 @@ class MazeEscapeGame {
     };
   }
 
-  /** Lighting: Ambient + Directional (bulan) + Spotlight senter (di Player). */
   _initLights() {
     this.ambientLight = new THREE.AmbientLight(0x555577, 1.10);
     this.scene.add(this.ambientLight);
 
-    // Directional light lemah sebagai cahaya "bulan" agar labirin tidak
-    // 100% gelap gulita, memberi sedikit siluet pada dinding.
     this.directionalLight = new THREE.DirectionalLight(0x99aaff, 0.85);
     this.directionalLight.position.set(20, 30, 10);
     this.directionalLight.castShadow = true;
@@ -139,8 +114,6 @@ class MazeEscapeGame {
     this.scene.add(this.directionalLight);
   }
 
-  /** Fog eksponensial untuk menciptakan atmosfer horror & membatasi
-   *  jarak pandang (sehingga monster bisa "muncul tiba-tiba" dari kabut). */
   _initFog() {
     this.fogColor = 0x05050a;
     this.fogDensity = 0.012;
@@ -155,11 +128,12 @@ class MazeEscapeGame {
     this.player.spawnAt(PLAYER_SPAWN.col, PLAYER_SPAWN.row);
 
     this.enemy = new Enemy(this.scene, ENEMY_SPAWN, 2.2);
-    this.gameKey = new GameKey(this.scene, KEY_POSITION);
-    this.door = new Door(this.scene, DOOR_POSITION, this.loadingManager);
+
+    const { keyPos, doorPos } = this._pickRandomKeyDoorPositions();
+    this.gameKey = new GameKey(this.scene, keyPos);
+    this.door = new Door(this.scene, doorPos, this.loadingManager);
     this.particles = new ParticleSystem(this.scene);
 
-    // Inisialisasi Minimap
     this.minimap = new Minimap(
       this.dom.minimapCanvas,
       this.maze,
@@ -170,8 +144,13 @@ class MazeEscapeGame {
     );
   }
 
-  /** Kontroler yang diberikan ke GUI agar lil-gui bisa memanipulasi state
-   *  game secara langsung tanpa GUI perlu tahu detail internal class lain. */
+  _pickRandomKeyDoorPositions() {
+    const excluded = [PLAYER_SPAWN, ENEMY_SPAWN];
+    const keyPos = getRandomWalkableCell(excluded);
+    const doorPos = getRandomWalkableCell([...excluded, keyPos]);
+    return { keyPos, doorPos };
+  }
+
   _initGUIController() {
     const controller = {
       setVolume: (value) => {
@@ -194,22 +173,10 @@ class MazeEscapeGame {
       },
       setFogDensity: (value) => {
         this.fogDensity = value;
-        if (this.fogEnabled && this.scene.fog) {
-          this.scene.fog.density = value;
-        }
+        if (this.fogEnabled && this.scene.fog) this.scene.fog.density = value;
       },
-      setAmbientIntensity: (value) => {
-        this.ambientLight.intensity = value;
-      },
-      setMoonlightIntensity: (value) => {
-        this.directionalLight.intensity = value;
-      },
-      setFlashlightIntensity: (value) => {
-        if (this.player && this.player.flashlight) {
-          this.player.flashlight.intensity = value;
-        }
-      },
-      setFlashlightEnabled: (value) => this.player.toggleFlashlight(value),
+      setAmbientIntensity: (value) => { this.ambientLight.intensity = value; },
+      setMoonlightIntensity: (value) => { this.directionalLight.intensity = value; },
       setDebugPathVisible: (value) => this.enemy.setDebugPathVisible(value),
       resetGame: () => this.resetGame(),
       uploadWallTexture: () => this._handleTextureUpload(this.maze.wallMaterial, 1, 1),
@@ -224,10 +191,6 @@ class MazeEscapeGame {
     this.timerRemaining = this.timerSeconds;
     this.audio.setVolume(settings.volume);
   }
-
-  // -----------------------------------------------------------------
-  // UI EVENT BINDING
-  // -----------------------------------------------------------------
 
   _bindUIEvents() {
     this.dom.btnStart.addEventListener('click', () => this._startGame());
@@ -245,17 +208,9 @@ class MazeEscapeGame {
 
   _bindPointerLockEvents() {
     this.player.controls.addEventListener('unlock', () => {
-      // Jika pointer lock terlepas (misal user tekan ESC) saat sedang
-      // bermain, otomatis masuk ke pause menu.
-      if (this.state === GameState.PLAYING) {
-        this._pauseGame();
-      }
+      if (this.state === GameState.PLAYING) this._pauseGame();
     });
   }
-
-  // -----------------------------------------------------------------
-  // STATE TRANSITIONS
-  // -----------------------------------------------------------------
 
   _startGame() {
     this.dom.startScreen.classList.add('hidden');
@@ -263,7 +218,6 @@ class MazeEscapeGame {
     this.state = GameState.PLAYING;
     this.player.controls.lock();
     this.clock.start();
-
     this.audio.init();
     this.audio.startTensionDrone();
   }
@@ -284,16 +238,12 @@ class MazeEscapeGame {
     this.state = GameState.VICTORY;
     this.player.controls.unlock();
     this.particles.spawnVictoryEffect(this.camera.position);
-
-    // Backsound tegang berhenti (fade out) begitu pintu keluar berhasil
-    // ditemukan, lalu gantikan dengan jingle kemenangan singkat.
     this.audio.stopTensionDrone(1.5);
     this.audio.playVictoryStinger();
 
     const minutes = Math.floor(this.timerRemaining / 60).toString().padStart(2, '0');
     const seconds = Math.floor(this.timerRemaining % 60).toString().padStart(2, '0');
     this.dom.victoryTimeText.textContent = `Waktu tersisa: ${minutes}:${seconds}`;
-
     this.dom.victoryScreen.classList.remove('hidden');
   }
 
@@ -302,50 +252,45 @@ class MazeEscapeGame {
     this.gameOverReason = reason;
     if (this.player.controls.isLocked) this.player.controls.unlock();
     this.particles.spawnGameOverEffect(this.camera.position);
-
     this.audio.stopTensionDrone(1.0);
-
     this.dom.gameoverReasonText.textContent = reason;
     this.dom.gameoverScreen.classList.remove('hidden');
   }
 
-  /** Reset penuh seluruh state game ke kondisi awal. */
   resetGame(autoStart = false) {
-    // Reset audio: hentikan drone lama (jika masih berjalan, misal saat
-    // restart dari pause menu) agar tidak menumpuk pada sesi berikutnya.
     this.audio.stopTensionDrone(0.2);
 
-    // Reset player
     this.player.spawnAt(PLAYER_SPAWN.col, PLAYER_SPAWN.row);
     this.player.hasKey = false;
     this.player.isCaught = false;
 
-    // Reset enemy
     this.enemy.setGridPosition(ENEMY_SPAWN.col, ENEMY_SPAWN.row);
     this.enemy.state = 'PATROL';
     this.enemy.path = [];
     this.enemy.hasCaughtPlayer = false;
 
-    // Reset key & door
+    const { keyPos, doorPos } = this._pickRandomKeyDoorPositions();
+
+    const newKeyWorld = gridToWorld(keyPos.col, keyPos.row);
     this.gameKey.collected = false;
-    this.gameKey.scene.add(this.gameKey.group);
+    this.gameKey.basePosition.set(newKeyWorld.x, 1.1, newKeyWorld.z);
     this.gameKey.group.position.copy(this.gameKey.basePosition);
+    if (!this.gameKey.group.parent) this.gameKey.scene.add(this.gameKey.group);
+
+    const newDoorWorld = gridToWorld(doorPos.col, doorPos.row);
+    this.door.position.set(newDoorWorld.x, 0, newDoorWorld.z);
+    this.door.group.position.copy(this.door.position);
     this.door.reset();
 
-    // Reset timer
     this.timerRemaining = this.timerSeconds;
-
-    // Reset particle effects
     this.particles.clearAll();
 
-    // Reset HUD visual
     this.dom.keyStatusText.textContent = 'Belum Ditemukan';
     this.dom.keyStatusText.classList.remove('found');
     this.dom.enemyStatusText.textContent = 'Tenang';
     this.dom.enemyStatusText.classList.remove('alert');
     this.dom.dangerVignette.classList.remove('active');
 
-    // Sembunyikan semua overlay
     this.dom.pauseScreen.classList.add('hidden');
     this.dom.victoryScreen.classList.add('hidden');
     this.dom.gameoverScreen.classList.add('hidden');
@@ -362,10 +307,6 @@ class MazeEscapeGame {
       this.state = GameState.START;
     }
   }
-
-  // -----------------------------------------------------------------
-  // GAME LOOP
-  // -----------------------------------------------------------------
 
   _updateTimer(delta) {
     this.timerRemaining -= delta;
@@ -393,14 +334,9 @@ class MazeEscapeGame {
     this.dom.dangerVignette.classList.toggle('active', isChasing);
   }
 
-  /** Memperbarui seluruh efek suara dinamis tiap frame: langkah kaki
-   *  pemain, growl monster (idle/mengejar), dan intensitas backsound
-   *  tegang berdasarkan apakah monster sedang mengejar pemain. */
   _updateAudio(delta) {
-    // 1) Langkah kaki — ritme mengikuti kecepatan jalan/lari pemain
     this.audio.updateFootsteps(delta, this.player.isMoving(), this.player.isRunning());
 
-    // 2) Suara monster — idle growl saat patroli, lebih intens saat mengejar
     const enemyPos = this.enemy.group.position;
     const playerPos = this.player.camera.position;
     const dx = enemyPos.x - playerPos.x;
@@ -408,7 +344,6 @@ class MazeEscapeGame {
     const distanceToPlayer = Math.sqrt(dx * dx + dz * dz);
     this.audio.updateMonster(delta, this.enemy.state, distanceToPlayer);
 
-    // 4) Backsound tegang makin mencekam saat monster mengejar
     this.audio.setDroneIntensity(this.enemy.state === 'CHASE');
   }
 
@@ -423,12 +358,8 @@ class MazeEscapeGame {
     this._updateHUDEnemyStatus();
     this._updateAudio(delta);
 
-    // Update data minimap
-    if (this.minimap) {
-      this.minimap.update();
-    }
+    if (this.minimap) this.minimap.update();
 
-    // Cek pengambilan kunci
     if (!this.player.hasKey && this.gameKey.checkPickup(this.player.camera.position)) {
       this.player.hasKey = true;
       this.door.unlock();
@@ -438,13 +369,11 @@ class MazeEscapeGame {
       this.dom.keyStatusText.classList.add('found');
     }
 
-    // Cek menang (sampai pintu dalam keadaan terbuka)
     if (this.player.hasKey && this.door.checkWin(this.player.camera.position)) {
       this._triggerVictory();
       return;
     }
 
-    // Cek tertangkap monster
     if (this.enemy.hasCaughtPlayer && !this.player.isCaught) {
       this.player.isCaught = true;
       this.audio.playMonsterJumpscare();
@@ -455,7 +384,7 @@ class MazeEscapeGame {
   _animate() {
     requestAnimationFrame(() => this._animate());
 
-    const delta = Math.min(this.clock.getDelta(), 0.1); // clamp agar stabil
+    const delta = Math.min(this.clock.getDelta(), 0.1);
     const elapsedTime = this.clock.getElapsedTime();
 
     if (this.state === GameState.PLAYING) {
@@ -463,7 +392,6 @@ class MazeEscapeGame {
     }
 
     this._updateFPSCounter(delta);
-
     this.renderer.render(this.scene, this.camera);
   }
 
@@ -485,18 +413,11 @@ class MazeEscapeGame {
   }
 
   _hideLoadingScreen() {
-    // Beri sedikit jeda agar transisi loading -> start screen terasa halus
     setTimeout(() => {
       this.dom.loadingScreen.classList.add('hidden');
     }, 400);
   }
 
-  /**
-   * Mengunggah tekstur secara real-time via dialog file browser
-   * @param {THREE.Material} material - Material Three.js yang akan diupdate
-   * @param {number} repeatX - Pengulangan tekstur pada sumbu X
-   * @param {number} repeatY - Pengulangan tekstur pada sumbu Y
-   */
   _handleTextureUpload(material, repeatX = 1, repeatY = 1) {
     const input = document.createElement('input');
     input.type = 'file';
@@ -516,14 +437,9 @@ class MazeEscapeGame {
           texture.repeat.set(repeatX, repeatY);
           texture.colorSpace = THREE.SRGBColorSpace;
           texture.needsUpdate = true;
-
-          // Hapus tekstur lama untuk mencegah kebocoran memori
-          if (material.map) {
-            material.map.dispose();
-          }
-
+          if (material.map) material.map.dispose();
           material.map = texture;
-          material.color.set(0xffffff); // Set warna dasar ke putih agar warna tekstur asli keluar
+          material.color.set(0xffffff);
           material.needsUpdate = true;
         };
         img.src = event.target.result;
@@ -535,9 +451,6 @@ class MazeEscapeGame {
   }
 }
 
-// =========================================================================
-// BOOTSTRAP
-// =========================================================================
 window.addEventListener('DOMContentLoaded', () => {
   new MazeEscapeGame();
 });

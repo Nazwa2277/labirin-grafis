@@ -1,21 +1,7 @@
-/**
- * =========================================================================
- *  key.js
- * =========================================================================
- *  Objek kunci yang harus ditemukan pemain di dalam labirin. Kunci
- *  ditampilkan sebagai mesh 3D berputar dengan efek mengambang (floating)
- *  dan glow emissive agar mudah terlihat dalam kegelapan/fog.
- * =========================================================================
- */
-
 import * as THREE from 'three';
 import { gridToWorld } from './maze.js';
 
 export class GameKey {
-  /**
-   * @param {THREE.Scene} scene
-   * @param {{col:number, row:number}} gridPosition
-   */
   constructor(scene, gridPosition) {
     this.scene = scene;
     this.collected = false;
@@ -39,7 +25,6 @@ export class GameKey {
       roughness: 0.25,
     });
 
-    // Bentuk kunci sederhana: cincin (torus) + batang + gigi kunci
     const ring = new THREE.Mesh(new THREE.TorusGeometry(0.18, 0.05, 12, 24), goldMaterial);
     ring.rotation.x = Math.PI / 2;
     this.group.add(ring);
@@ -57,7 +42,6 @@ export class GameKey {
     tooth2.position.set(0.05, 0, 0.4);
     this.group.add(tooth2);
 
-    // Cahaya kecil agar kunci "bersinar" dalam gelap, jadi penanda visual jelas
     this.glowLight = new THREE.PointLight(0xffd700, 1.1, 4);
     this.glowLight.position.set(0, 0, 0);
     this.group.add(this.glowLight);
@@ -65,14 +49,12 @@ export class GameKey {
     this.scene.add(this.group);
   }
 
-  /** Animasi berputar + mengambang naik-turun, dipanggil setiap frame. */
   update(elapsedTime) {
     if (this.collected) return;
     this.group.rotation.y = elapsedTime * 1.5;
     this.group.position.y = this.basePosition.y + Math.sin(elapsedTime * 2.0) * 0.12;
   }
 
-  /** Mengecek apakah pemain cukup dekat untuk mengambil kunci. */
   checkPickup(playerPosition, pickupRadius = 1.0) {
     if (this.collected) return false;
     const dist = this.group.position.distanceTo(

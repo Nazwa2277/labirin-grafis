@@ -1,34 +1,12 @@
-/**
- * =========================================================================
- *  enemy.js
- * =========================================================================
- *  Monster penjaga labirin. Memiliki dua mode perilaku (state machine):
- *
- *   1. PATROL  -> bergerak mondar-mandir mengikuti titik-titik patroli
- *                 yang sudah ditentukan, selama pemain belum terdeteksi.
- *
- *   2. CHASE   -> begitu pemain masuk ke dalam DETECTION_RADIUS, monster
- *                 akan menggunakan algoritma A* (lihat pathfinding.js)
- *                 untuk menghitung jalur terpendek menuju posisi pemain,
- *                 lalu bergerak mengikuti jalur tersebut. Jalur dihitung
- *                 ulang (re-path) secara berkala agar tetap akurat saat
- *                 pemain berpindah posisi.
- *
- *  Monster akan "menangkap" pemain jika jaraknya kurang dari CATCH_RADIUS.
- * =========================================================================
- */
-
 import * as THREE from 'three';
 import { MAZE_LAYOUT, gridToWorld, worldToGrid } from './maze.js';
 import { findPathAStar, simplifyPath } from './pathfinding.js';
 
-const DETECTION_RADIUS = 7.0;   // satuan dunia — radius deteksi pemain
-const CATCH_RADIUS = 0.9;       // satuan dunia — jarak untuk "menangkap" pemain
-const REPATH_INTERVAL = 0.6;    // detik — seberapa sering A* dihitung ulang
-const PATROL_POINT_RADIUS = 0.3; // toleransi sampai di titik tujuan
+const DETECTION_RADIUS = 7.0;
+const CATCH_RADIUS = 0.9;
+const REPATH_INTERVAL = 0.6;
+const PATROL_POINT_RADIUS = 0.3;
 
-// Titik-titik patroli (grid). Monster akan berjalan mengelilingi titik ini
-// secara berurutan selama belum mendeteksi pemain.
 const PATROL_POINTS = [
   { col: 13, row: 13 },
   { col: 13, row: 9 },
@@ -37,36 +15,26 @@ const PATROL_POINTS = [
 ];
 
 export class Enemy {
-  /**
-   * @param {THREE.Scene} scene
-   * @param {{col:number,row:number}} spawnGridPos
-   * @param {number} baseSpeed - kecepatan dasar (satuan/detik), diatur dari GUI
-   */
   constructor(scene, spawnGridPos, baseSpeed = 2.2) {
     this.scene = scene;
     this.grid = MAZE_LAYOUT;
     this.baseSpeed = baseSpeed;
     this.speed = baseSpeed;
 
-    this.state = 'PATROL'; // 'PATROL' | 'CHASE'
-    this.path = [];          // array {col, row} hasil A*
+    this.state = 'PATROL';
+    this.path = [];
     this.pathIndex = 0;
     this.repathTimer = 0;
-
     this.patrolIndex = 0;
-
     this.hasCaughtPlayer = false;
 
     this._buildMesh();
     this.setGridPosition(spawnGridPos.col, spawnGridPos.row);
 
-    // Debug path visual (opsional, bisa di-toggle dari GUI)
     this.debugPathEnabled = false;
     this._buildDebugPathLine();
   }
 
-  /** Membangun mesh visual monster: bentuk humanoid sederhana low-poly
-   *  agar tetap performant namun terlihat menyeramkan dengan lighting. */
   _buildMesh() {
     this.group = new THREE.Group();
     this.group.name = 'Enemy';
@@ -85,19 +53,16 @@ export class Enemy {
       emissiveIntensity: 2.0,
     });
 
-    // Torso
     const torso = new THREE.Mesh(new THREE.CapsuleGeometry(0.35, 0.9, 4, 8), bodyMat);
     torso.position.y = 1.0;
     torso.castShadow = true;
     this.group.add(torso);
 
-    // Kepala
     const head = new THREE.Mesh(new THREE.SphereGeometry(0.28, 8, 8), bodyMat);
     head.position.y = 1.65;
     head.castShadow = true;
     this.group.add(head);
 
-    // Mata (glow merah, menyeramkan dalam gelap)
     const eyeGeo = new THREE.SphereGeometry(0.05, 6, 6);
     const eyeL = new THREE.Mesh(eyeGeo, eyeMat);
     eyeL.position.set(-0.1, 1.68, 0.23);
@@ -105,7 +70,6 @@ export class Enemy {
     eyeR.position.set(0.1, 1.68, 0.23);
     this.group.add(eyeL, eyeR);
 
-    // Lengan
     const armGeo = new THREE.CapsuleGeometry(0.09, 0.7, 4, 6);
     const armL = new THREE.Mesh(armGeo, bodyMat);
     armL.position.set(-0.42, 0.95, 0);
@@ -115,7 +79,6 @@ export class Enemy {
     armR.rotation.z = -0.2;
     this.group.add(armL, armR);
 
-    // Lampu kecil di mata agar terlihat menyala dalam fog/gelap
     this.eyeGlow = new THREE.PointLight(0xff1111, 0.6, 3);
     this.eyeGlow.position.set(0, 1.68, 0.2);
     this.group.add(this.eyeGlow);
@@ -123,7 +86,6 @@ export class Enemy {
     this.scene.add(this.group);
   }
 
-  /** Garis debug untuk memvisualisasikan jalur A* yang sedang diikuti. */
   _buildDebugPathLine() {
     const material = new THREE.LineBasicMaterial({ color: 0x00ff00 });
     const geometry = new THREE.BufferGeometry();
@@ -137,9 +99,7 @@ export class Enemy {
     this.debugLine.visible = visible;
   }
 
-  setSpeed(speed) {
-    this.speed = speed;
-  }
+  setSpeed(speed) { this.speed = speed; }
 
   setGridPosition(col, row) {
     const { x, z } = gridToWorld(col, row);
@@ -150,13 +110,6 @@ export class Enemy {
     return worldToGrid(this.group.position.x, this.group.position.z);
   }
 
-  /**
-   * =====================================================================
-   *  UPDATE UTAMA — dipanggil setiap frame dari main.js
-   * =====================================================================
-   * @param {number} delta - waktu sejak frame sebelumnya (detik)
-   * @param {Player} player - instance pemain, untuk mengetahui posisinya
-   */
   update(delta, player) {
     if (this.hasCaughtPlayer) return;
 
@@ -166,17 +119,12 @@ export class Enemy {
       new THREE.Vector3(playerPos.x, myPos.y, playerPos.z)
     );
 
-    // -------------------------------------------------------------
-    // STATE TRANSITION: PATROL <-> CHASE berdasarkan jarak deteksi
-    // -------------------------------------------------------------
     if (distanceToPlayer <= DETECTION_RADIUS) {
       if (this.state !== 'CHASE') {
         this.state = 'CHASE';
-        this.repathTimer = 0; // paksa hitung path A* segera
+        this.repathTimer = 0;
       }
     } else if (distanceToPlayer > DETECTION_RADIUS * 1.4) {
-      // Beri sedikit hysteresis (radius keluar lebih besar dari radius
-      // masuk) agar monster tidak "flip-flop" state di tepi radius.
       if (this.state !== 'PATROL') {
         this.state = 'PATROL';
         this.path = [];
@@ -184,7 +132,6 @@ export class Enemy {
       }
     }
 
-    // Cek apakah pemain tertangkap
     if (this.state === 'CHASE' && distanceToPlayer <= CATCH_RADIUS) {
       this.hasCaughtPlayer = true;
       return;
@@ -196,32 +143,20 @@ export class Enemy {
       this._updatePatrol(delta);
     }
 
-    // Animasi sederhana: monster sedikit "mengambang" naik-turun agar
-    // terasa hidup
     this.group.position.y = Math.sin(performance.now() * 0.006) * 0.05;
   }
 
-  /**
-   * Mode CHASE: menghitung ulang jalur A* secara berkala menuju posisi
-   * pemain saat ini, lalu bergerak mengikuti titik-titik jalur tersebut.
-   */
   _updateChase(delta, player) {
     this.repathTimer -= delta;
 
     if (this.repathTimer <= 0) {
       this.repathTimer = REPATH_INTERVAL;
-
       const startGrid = this.getGridPosition();
       const goalGrid = player.getGridPosition();
-
-      // ---------------------------------------------------------
-      // PEMANGGILAN ALGORITMA A* — lihat pathfinding.js
-      // ---------------------------------------------------------
       const rawPath = findPathAStar(this.grid, startGrid, goalGrid);
-
       if (rawPath && rawPath.length > 1) {
         this.path = simplifyPath(rawPath);
-        this.pathIndex = 1; // index 0 adalah posisi start itu sendiri
+        this.pathIndex = 1;
         this._updateDebugLine();
       }
     }
@@ -229,39 +164,28 @@ export class Enemy {
     this._followPath(delta);
   }
 
-  /** Mode PATROL: bergerak menuju titik patroli berikutnya secara berurutan,
-   *  juga memakai A* agar monster tetap menghindari dinding dengan benar. */
   _updatePatrol(delta) {
     if (this.path.length === 0) {
       const startGrid = this.getGridPosition();
       const targetGrid = PATROL_POINTS[this.patrolIndex];
-
       const rawPath = findPathAStar(this.grid, startGrid, targetGrid);
       if (rawPath && rawPath.length > 1) {
         this.path = simplifyPath(rawPath);
         this.pathIndex = 1;
         this._updateDebugLine();
       } else {
-        // Tidak ada jalur (seharusnya jarang terjadi), lanjut ke titik berikutnya
         this.patrolIndex = (this.patrolIndex + 1) % PATROL_POINTS.length;
         return;
       }
     }
 
-    const reachedEnd = this._followPath(delta, this.speed * 0.55); // patrol lebih pelan
-
+    const reachedEnd = this._followPath(delta, this.speed * 0.55);
     if (reachedEnd) {
       this.patrolIndex = (this.patrolIndex + 1) % PATROL_POINTS.length;
       this.path = [];
     }
   }
 
-  /**
-   * Menggerakkan monster mengikuti this.path (hasil A*) selangkah demi
-   * selangkah menuju setiap waypoint, dengan interpolasi posisi halus.
-   *
-   * @returns {boolean} true jika sudah sampai di titik akhir jalur
-   */
   _followPath(delta, overrideSpeed) {
     if (this.path.length === 0 || this.pathIndex >= this.path.length) return true;
 
@@ -283,14 +207,12 @@ export class Enemy {
     this.group.position.x += toTarget.x * speed * delta;
     this.group.position.z += toTarget.z * speed * delta;
 
-    // Hadapkan monster ke arah gerak
     const angle = Math.atan2(toTarget.x, toTarget.z);
     this.group.rotation.y = angle;
 
     return false;
   }
 
-  /** Memperbarui garis hijau debug agar sesuai jalur A* terbaru. */
   _updateDebugLine() {
     if (!this.path || this.path.length === 0) return;
     const points = this.path.map((p) => {
@@ -301,7 +223,6 @@ export class Enemy {
     this.debugLine.geometry = new THREE.BufferGeometry().setFromPoints(points);
   }
 
-  /** Status untuk ditampilkan di HUD. */
   getStatusLabel() {
     return this.state === 'CHASE' ? 'MENGEJAR!' : 'Berpatroli';
   }

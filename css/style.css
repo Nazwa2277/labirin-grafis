@@ -353,6 +353,7 @@ html, body {
   --title-background-color: #1a0d0d;
   --title-text-color: #e8e0d8;
   z-index: 50 !important;
+  display: none !important;
 }
 
 /* ===================================================

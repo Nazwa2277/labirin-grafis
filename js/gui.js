@@ -1,21 +1,3 @@
-/**
- * =========================================================================
- *  gui.js
- * =========================================================================
- *  Membangun panel GUI (lil-gui) berisi pengaturan game:
- *   - Volume
- *   - Tingkat Kesulitan (mempengaruhi kecepatan monster & waktu)
- *   - Timer (durasi awal, dalam detik)
- *   - Fog ON/OFF
- *   - Flashlight ON/OFF
- *   - Enemy Speed
- *   - Reset Game
- *
- *  GUI ini menerima objek `gameController` yang menyediakan method-method
- *  untuk diterapkan ke state game secara langsung (lihat main.js).
- * =========================================================================
- */
-
 import GUI from 'lil-gui';
 
 const DIFFICULTY_PRESETS = {
@@ -35,25 +17,17 @@ export function createGUI(gameController) {
     fogDensity: 0.012,
     ambientIntensity: 1.10,
     moonlightIntensity: 0.85,
-    flashlightIntensity: 8.0,
-    flashlightEnabled: true,
     enemySpeed: 2.2,
     showDebugPath: false,
     resetGame: () => gameController.resetGame(),
   };
 
-  // ----------------------------------------------------------------
-  // AUDIO
-  // ----------------------------------------------------------------
   const audioFolder = gui.addFolder('🔊 Audio');
   audioFolder
     .add(settings, 'volume', 0, 1, 0.01)
     .name('Volume')
     .onChange((value) => gameController.setVolume(value));
 
-  // ----------------------------------------------------------------
-  // GAMEPLAY
-  // ----------------------------------------------------------------
   const gameplayFolder = gui.addFolder('🎮 Gameplay');
 
   gameplayFolder
@@ -78,9 +52,6 @@ export function createGUI(gameController) {
     .name('Kecepatan Monster')
     .onChange((value) => gameController.setEnemySpeed(value));
 
-  // ----------------------------------------------------------------
-  // GRAFIS
-  // ----------------------------------------------------------------
   const graphicsFolder = gui.addFolder('🎨 Grafis');
 
   graphicsFolder
@@ -104,25 +75,12 @@ export function createGUI(gameController) {
     .onChange((value) => gameController.setMoonlightIntensity(value));
 
   graphicsFolder
-    .add(settings, 'flashlightEnabled')
-    .name('Senter')
-    .onChange((value) => gameController.setFlashlightEnabled(value));
-
-  graphicsFolder
-    .add(settings, 'flashlightIntensity', 0.0, 10.0, 0.2)
-    .name('Terang Senter')
-    .onChange((value) => gameController.setFlashlightIntensity(value));
-
-  graphicsFolder
     .add(settings, 'showDebugPath')
     .name('Debug A* Path')
     .onChange((value) => gameController.setDebugPathVisible(value));
 
-  // ----------------------------------------------------------------
-  // TEKSTUR KASTEM
-  // ----------------------------------------------------------------
   const textureFolder = gui.addFolder('🖼 Tekstur Kastem');
-  
+
   settings.uploadWallTexture = () => gameController.uploadWallTexture();
   settings.uploadFloorTexture = () => gameController.uploadFloorTexture();
   settings.uploadCeilingTexture = () => gameController.uploadCeilingTexture();
@@ -133,13 +91,10 @@ export function createGUI(gameController) {
   textureFolder.add(settings, 'uploadCeilingTexture').name('📤 Upload Langit-langit');
   textureFolder.add(settings, 'uploadDoorTexture').name('📤 Upload Pintu');
 
-  // ----------------------------------------------------------------
-  // AKSI
-  // ----------------------------------------------------------------
   const actionsFolder = gui.addFolder('🔁 Aksi');
   actionsFolder.add(settings, 'resetGame').name('↻ Reset Game');
 
-  gui.close(); // GUI mulai dalam keadaan tertutup agar tidak menghalangi layar
+  gui.close();
 
   return { gui, settings };
 }
