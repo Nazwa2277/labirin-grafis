@@ -11,12 +11,6 @@
 </head>
 <body>
 
-  <!-- Rotate notice untuk portrait mobile -->
-  <div id="rotate-notice">
-    <div class="rotate-icon">📱</div>
-    <p>Putar HP ke mode <b>Landscape</b><br>untuk bermain</p>
-  </div>
-
   <!-- CANVAS THREE.JS -->
   <canvas id="game-canvas"></canvas>
 
@@ -137,17 +131,5 @@
   </script>
 
   <script type="module" src="js/main.js"></script>
-  <script>
-    if ('screen' in window && 'orientation' in screen) {
-      const tryLock = () => {
-        if (screen.orientation && screen.orientation.lock) {
-          screen.orientation.lock('landscape').catch(() => {});
-        }
-      };
-      document.getElementById('btn-start') &&
-        document.getElementById('btn-start').addEventListener('click', tryLock, { once: true });
-      document.addEventListener('touchstart', tryLock, { once: true });
-    }
-  </script>
 </body>
 </html>
