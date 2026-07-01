@@ -237,12 +237,12 @@ export class Maze {
       ctx.fill();
     }
 
-    // Bintang sedang 120 — dengan glow tipis
-    for (let i = 0; i < 120; i++) {
+    // Bintang sedang 40 — glow sangat tipis
+    for (let i = 0; i < 40; i++) {
       const x = rand() * S;
       const y = rand() * S * 0.82;
-      const r = rand() * 1.0 + 0.6;
-      const a = rand() * 0.5 + 0.45;
+      const r = rand() * 0.8 + 0.5;
+      const a = rand() * 0.4 + 0.5;
       const hue = rand();
       let rgb;
       if (hue < 0.3)       rgb = '190,210,255';
@@ -252,27 +252,27 @@ export class Maze {
       ctx.arc(x, y, r, 0, Math.PI * 2);
       ctx.fillStyle = `rgba(${rgb},${a})`;
       ctx.fill();
-      const g = ctx.createRadialGradient(x, y, 0, x, y, r * 3.5);
-      g.addColorStop(0, `rgba(${rgb},${a * 0.4})`);
+      const g = ctx.createRadialGradient(x, y, 0, x, y, r * 1.8);
+      g.addColorStop(0, `rgba(${rgb},${a * 0.25})`);
       g.addColorStop(1, `rgba(${rgb},0)`);
       ctx.beginPath();
-      ctx.arc(x, y, r * 3.5, 0, Math.PI * 2);
+      ctx.arc(x, y, r * 1.8, 0, Math.PI * 2);
       ctx.fillStyle = g;
       ctx.fill();
     }
 
-    // Bintang terang 18 — dengan spike salib
-    for (let i = 0; i < 18; i++) {
+    // Bintang terang 8 — glow kecil dengan spike salib tipis
+    for (let i = 0; i < 8; i++) {
       const x = rand() * S;
       const y = rand() * S * 0.78;
-      const r = rand() * 1.5 + 1.2;
-      const a = rand() * 0.4 + 0.55;
-      const gl = ctx.createRadialGradient(x, y, 0, x, y, r * 8);
-      gl.addColorStop(0, 'rgba(200,220,255,0.5)');
-      gl.addColorStop(0.3, 'rgba(180,200,255,0.1)');
+      const r = rand() * 1.0 + 0.8;
+      const a = rand() * 0.3 + 0.6;
+      const gl = ctx.createRadialGradient(x, y, 0, x, y, r * 4);
+      gl.addColorStop(0, 'rgba(200,220,255,0.35)');
+      gl.addColorStop(0.4, 'rgba(180,200,255,0.08)');
       gl.addColorStop(1, 'rgba(150,180,255,0)');
       ctx.beginPath();
-      ctx.arc(x, y, r * 8, 0, Math.PI * 2);
+      ctx.arc(x, y, r * 4, 0, Math.PI * 2);
       ctx.fillStyle = gl;
       ctx.fill();
       ctx.beginPath();
@@ -280,12 +280,12 @@ export class Maze {
       ctx.fillStyle = `rgba(220,235,255,${a})`;
       ctx.fill();
       ctx.save();
-      ctx.globalAlpha = 0.2;
+      ctx.globalAlpha = 0.15;
       ctx.strokeStyle = 'rgba(200,220,255,1)';
-      ctx.lineWidth = 0.5;
+      ctx.lineWidth = 0.4;
       ctx.beginPath();
-      ctx.moveTo(x - r * 6, y); ctx.lineTo(x + r * 6, y);
-      ctx.moveTo(x, y - r * 6); ctx.lineTo(x, y + r * 6);
+      ctx.moveTo(x - r * 4, y); ctx.lineTo(x + r * 4, y);
+      ctx.moveTo(x, y - r * 4); ctx.lineTo(x, y + r * 4);
       ctx.stroke();
       ctx.restore();
     }
