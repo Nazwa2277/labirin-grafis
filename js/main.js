@@ -1,5 +1,4 @@
 import * as THREE from 'three';
-import { Sky } from 'three/addons/objects/Sky.js';
 import { Maze, PLAYER_SPAWN, ENEMY_SPAWN, KEY_POSITION, DOOR_POSITION, getRandomWalkableCell, gridToWorld } from './maze.js';
 import { Player } from './player.js';
 import { Enemy } from './enemy.js';
@@ -136,35 +135,11 @@ class MazeEscapeGame {
   }
 
   _initFog() {
-    this.fogColor = 0x050510;
+    this.fogColor = 0x05050f;
     this.fogDensity = 0.012;
     this.scene.fog = new THREE.FogExp2(this.fogColor, this.fogDensity);
+    this.scene.background = new THREE.Color(this.fogColor);
     this.fogEnabled = true;
-
-    this.sky = new Sky();
-    this.sky.scale.setScalar(10000);
-    this.scene.add(this.sky);
-
-    const skyUniforms = this.sky.material.uniforms;
-    skyUniforms['turbidity'].value = 10;
-    skyUniforms['rayleigh'].value = 0.12;
-    skyUniforms['mieCoefficient'].value = 0.01;
-    skyUniforms['mieDirectionalG'].value = 0.98;
-
-    // Matahari jauh di bawah horizon = langit malam gelap keunguan
-    const phi = THREE.MathUtils.degToRad(96);
-    const theta = THREE.MathUtils.degToRad(180);
-    const sun = new THREE.Vector3().setFromSphericalCoords(1, phi, theta);
-    skyUniforms['sunPosition'].value.copy(sun);
-
-    // Render sky ke cube texture sebagai scene background
-    const pmrem = new THREE.PMREMGenerator(this.renderer);
-    const skyEnv = pmrem.fromScene(
-      (() => { const s = new THREE.Scene(); s.add(this.sky); return s; })()
-    ).texture;
-    this.scene.background = skyEnv;
-    this.scene.environment = skyEnv;
-    pmrem.dispose();
   }
 
   _initWorld() {

@@ -188,8 +188,80 @@ export class Maze {
   }
 
   _buildCeiling() {
-    // Langit ditangani oleh Sky shader di main.js
-    // Method ini sengaja dikosongkan
+    const width = this.grid[0].length * CELL_SIZE;
+    const depth = this.grid.length * CELL_SIZE;
+
+    const skyGeo = new THREE.SphereGeometry(120, 32, 16);
+    skyGeo.scale(-1, 1, -1);
+
+    const skyCanvas = document.createElement('canvas');
+    skyCanvas.width = 512;
+    skyCanvas.height = 512;
+    const ctx = skyCanvas.getContext('2d');
+
+    const grad = ctx.createLinearGradient(0, 0, 0, 512);
+    grad.addColorStop(0.0, '#000008');
+    grad.addColorStop(0.3, '#05050f');
+    grad.addColorStop(0.7, '#0a0818');
+    grad.addColorStop(1.0, '#150d28');
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, 0, 512, 512);
+
+    for (let i = 0; i < 320; i++) {
+      const x = Math.random() * 512;
+      const y = Math.random() * 320;
+      const r = Math.random() * 1.4 + 0.3;
+      const alpha = Math.random() * 0.7 + 0.3;
+      ctx.beginPath();
+      ctx.arc(x, y, r, 0, Math.PI * 2);
+      ctx.fillStyle = `rgba(255,255,255,${alpha})`;
+      ctx.fill();
+    }
+
+    for (let i = 0; i < 12; i++) {
+      const x = Math.random() * 512;
+      const y = Math.random() * 280;
+      const r = Math.random() * 2.5 + 1.2;
+      ctx.beginPath();
+      ctx.arc(x, y, r, 0, Math.PI * 2);
+      const glow = ctx.createRadialGradient(x, y, 0, x, y, r * 4);
+      glow.addColorStop(0, 'rgba(200,220,255,0.9)');
+      glow.addColorStop(1, 'rgba(100,140,255,0)');
+      ctx.fillStyle = glow;
+      ctx.fill();
+    }
+
+    const moonX = 380, moonY = 80, moonR = 22;
+    const moonGlow = ctx.createRadialGradient(moonX, moonY, 0, moonX, moonY, moonR * 5);
+    moonGlow.addColorStop(0, 'rgba(240,240,200,1)');
+    moonGlow.addColorStop(0.2, 'rgba(200,200,160,0.6)');
+    moonGlow.addColorStop(1, 'rgba(100,100,80,0)');
+    ctx.beginPath();
+    ctx.arc(moonX, moonY, moonR * 5, 0, Math.PI * 2);
+    ctx.fillStyle = moonGlow;
+    ctx.fill();
+    ctx.beginPath();
+    ctx.arc(moonX, moonY, moonR, 0, Math.PI * 2);
+    ctx.fillStyle = '#f0f0c8';
+    ctx.fill();
+
+    const skyTexture = new THREE.CanvasTexture(skyCanvas);
+    skyTexture.colorSpace = THREE.SRGBColorSpace;
+
+    const skyMat = new THREE.MeshBasicMaterial({
+      map: skyTexture,
+      side: THREE.BackSide,
+      depthWrite: false,
+    });
+
+    this.skyDome = new THREE.Mesh(skyGeo, skyMat);
+    this.skyDome.position.set(
+      (this.grid[0].length * CELL_SIZE) / 2 - CELL_SIZE / 2,
+      0,
+      (this.grid.length * CELL_SIZE) / 2 - CELL_SIZE / 2
+    );
+    this.skyDome.name = 'SkyDome';
+    this.group.add(this.skyDome);
   }
 
   _buildWalls() {
