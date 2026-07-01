@@ -9,6 +9,8 @@ import { createGUI } from './gui.js';
 import { Minimap } from './minimap.js';
 import { AudioManager } from './audio.js';
 
+const IS_MOBILE = window.matchMedia('(pointer: coarse)').matches;
+
 const GameState = {
   START: 'START',
   PLAYING: 'PLAYING',
@@ -207,6 +209,7 @@ class MazeEscapeGame {
   }
 
   _bindPointerLockEvents() {
+    if (IS_MOBILE) return;
     this.player.controls.addEventListener('unlock', () => {
       if (this.state === GameState.PLAYING) this._pauseGame();
     });
@@ -216,7 +219,11 @@ class MazeEscapeGame {
     this.dom.startScreen.classList.add('hidden');
     this.dom.hud.classList.remove('hidden');
     this.state = GameState.PLAYING;
-    this.player.controls.lock();
+    if (IS_MOBILE) {
+      this.player._mobileActive = true;
+    } else {
+      this.player.controls.lock();
+    }
     this.clock.start();
     this.audio.init();
     this.audio.startTensionDrone();
@@ -225,18 +232,18 @@ class MazeEscapeGame {
   _pauseGame() {
     this.state = GameState.PAUSED;
     this.dom.pauseScreen.classList.remove('hidden');
-    if (this.player.controls.isLocked) this.player.controls.unlock();
+    if (!IS_MOBILE && this.player.controls.isLocked) this.player.controls.unlock();
   }
 
   _resumeGame() {
     this.dom.pauseScreen.classList.add('hidden');
     this.state = GameState.PLAYING;
-    this.player.controls.lock();
+    if (!IS_MOBILE) this.player.controls.lock();
   }
 
   _triggerVictory() {
     this.state = GameState.VICTORY;
-    this.player.controls.unlock();
+    if (!IS_MOBILE) this.player.controls.unlock();
     this.particles.spawnVictoryEffect(this.camera.position);
     this.audio.stopTensionDrone(1.5);
     this.audio.playVictoryStinger();
@@ -250,7 +257,7 @@ class MazeEscapeGame {
   _triggerGameOver(reason) {
     this.state = GameState.GAMEOVER;
     this.gameOverReason = reason;
-    if (this.player.controls.isLocked) this.player.controls.unlock();
+    if (!IS_MOBILE && this.player.controls.isLocked) this.player.controls.unlock();
     this.particles.spawnGameOverEffect(this.camera.position);
     this.audio.stopTensionDrone(1.0);
     this.dom.gameoverReasonText.textContent = reason;
@@ -298,7 +305,11 @@ class MazeEscapeGame {
     if (autoStart) {
       this.dom.hud.classList.remove('hidden');
       this.state = GameState.PLAYING;
-      this.player.controls.lock();
+      if (IS_MOBILE) {
+        this.player._mobileActive = true;
+      } else {
+        this.player.controls.lock();
+      }
       this.audio.init();
       this.audio.startTensionDrone();
     } else {
