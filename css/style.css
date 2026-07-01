@@ -472,3 +472,45 @@ html, body {
     display: inline;
   }
 }
+
+/* ===================================================
+   FORCE LANDSCAPE DI MOBILE (portrait = rotate 90deg)
+=================================================== */
+@media (pointer: coarse) and (orientation: portrait) {
+  #rotate-notice {
+    display: flex !important;
+  }
+}
+
+#rotate-notice {
+  display: none;
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  background: #000;
+  color: #e8e0d8;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  font-family: 'Courier Prime', monospace;
+  gap: 20px;
+}
+
+#rotate-notice .rotate-icon {
+  font-size: 64px;
+  animation: spin-hint 1.8s ease-in-out infinite;
+}
+
+#rotate-notice p {
+  font-size: 16px;
+  color: #a89e94;
+  letter-spacing: 1px;
+}
+
+@keyframes spin-hint {
+  0%   { transform: rotate(0deg); }
+  40%  { transform: rotate(90deg); }
+  60%  { transform: rotate(90deg); }
+  100% { transform: rotate(0deg); }
+}

@@ -2,15 +2,22 @@
 <html lang="id">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <title>Maze Escape 3D — Horror with A* Pathfinding</title>
   <link rel="stylesheet" href="css/style.css" />
 </head>
 <body>
 
-  <!-- ============================== -->
-  <!-- CANVAS THREE.JS                -->
-  <!-- ============================== -->
+  <!-- Rotate notice untuk portrait mobile -->
+  <div id="rotate-notice">
+    <div class="rotate-icon">📱</div>
+    <p>Putar HP ke mode <b>Landscape</b><br>untuk bermain</p>
+  </div>
+
+  <!-- CANVAS THREE.JS -->
   <canvas id="game-canvas"></canvas>
 
   <!-- ============================== -->
@@ -130,5 +137,17 @@
   </script>
 
   <script type="module" src="js/main.js"></script>
+  <script>
+    if ('screen' in window && 'orientation' in screen) {
+      const tryLock = () => {
+        if (screen.orientation && screen.orientation.lock) {
+          screen.orientation.lock('landscape').catch(() => {});
+        }
+      };
+      document.getElementById('btn-start') &&
+        document.getElementById('btn-start').addEventListener('click', tryLock, { once: true });
+      document.addEventListener('touchstart', tryLock, { once: true });
+    }
+  </script>
 </body>
 </html>

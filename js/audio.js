@@ -24,15 +24,29 @@ export class AudioManager {
 
   _bindUnlockOnGesture() {
     const unlock = () => {
-      this.init();
-      if (this.ctx && this.ctx.state === 'suspended') this.ctx.resume();
+      if (!this.ctx) {
+        const AudioCtx = window.AudioContext || window.webkitAudioContext;
+        if (!AudioCtx) return;
+        this.ctx = new AudioCtx();
+        this.masterGain = this.ctx.createGain();
+        this.masterGain.gain.value = this.masterVolume;
+        this.masterGain.connect(this.ctx.destination);
+        this.unlocked = true;
+      }
+      if (this.ctx.state === 'suspended') {
+        this.ctx.resume();
+      }
     };
     window.addEventListener('pointerdown', unlock, { once: true });
+    window.addEventListener('touchstart', unlock, { once: true });
     window.addEventListener('keydown', unlock, { once: true });
   }
 
   init() {
-    if (this.ctx) return;
+    if (this.ctx) {
+      if (this.ctx.state === 'suspended') this.ctx.resume();
+      return;
+    }
     const AudioCtx = window.AudioContext || window.webkitAudioContext;
     if (!AudioCtx) { console.warn('[Audio] Web Audio API tidak didukung.'); return; }
     this.ctx = new AudioCtx();
@@ -40,6 +54,7 @@ export class AudioManager {
     this.masterGain.gain.value = this.masterVolume;
     this.masterGain.connect(this.ctx.destination);
     this.unlocked = true;
+    if (this.ctx.state === 'suspended') this.ctx.resume();
   }
 
   setVolume(value) {
