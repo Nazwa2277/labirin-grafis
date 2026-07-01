@@ -536,3 +536,24 @@ html, body {
     font-size: 14px;
   }
 }
+
+/* Tombol toggle view (overhead/FPS) — mobile */
+@media (pointer: coarse) {
+  #btn-view-toggle {
+    position: absolute;
+    left: 24px;
+    top: 20px;
+    padding: 8px 14px;
+    border-radius: 8px;
+    background: rgba(10, 8, 20, 0.65);
+    border: 1px solid rgba(100, 80, 200, 0.6);
+    color: #c8c0f0;
+    font-size: 12px;
+    font-weight: bold;
+    pointer-events: all;
+    touch-action: none;
+    user-select: none;
+    -webkit-user-select: none;
+    backdrop-filter: blur(2px);
+  }
+}

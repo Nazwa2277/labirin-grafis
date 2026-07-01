@@ -84,6 +84,17 @@ class MazeEscapeGame {
       100
     );
 
+    this.overheadCamera = new THREE.PerspectiveCamera(
+      65,
+      window.innerWidth / window.innerHeight,
+      0.1,
+      300
+    );
+    this.overheadCamera.rotation.order = 'YXZ';
+
+    this.activeCamera = this.camera;
+    this.isOverheadView = false;
+
     this.renderer = new THREE.WebGLRenderer({
       canvas: this.dom.canvas,
       antialias: true,
@@ -99,6 +110,13 @@ class MazeEscapeGame {
       const pct = total > 0 ? Math.round((loaded / total) * 100) : 100;
       if (this.dom.loadingBarFill) this.dom.loadingBarFill.style.width = `${pct}%`;
     };
+  }
+
+  _toggleOverheadView() {
+    this.isOverheadView = !this.isOverheadView;
+    this.activeCamera = this.isOverheadView ? this.overheadCamera : this.camera;
+    const btn = document.getElementById('btn-view-toggle');
+    if (btn) btn.textContent = this.isOverheadView ? '👁 FPS' : '🗺 Atas';
   }
 
   _initLights() {
@@ -117,7 +135,7 @@ class MazeEscapeGame {
   }
 
   _initFog() {
-    this.fogColor = 0x05050a;
+    this.fogColor = 0x05050f;
     this.fogDensity = 0.012;
     this.scene.fog = new THREE.FogExp2(this.fogColor, this.fogDensity);
     this.scene.background = new THREE.Color(this.fogColor);
@@ -204,6 +222,9 @@ class MazeEscapeGame {
     document.addEventListener('keydown', (e) => {
       if (e.code === 'Escape' && this.state === GameState.PLAYING) {
         this._pauseGame();
+      }
+      if (e.code === 'KeyV' && this.state === GameState.PLAYING) {
+        this._toggleOverheadView();
       }
     });
   }
@@ -400,10 +421,17 @@ class MazeEscapeGame {
 
     if (this.state === GameState.PLAYING) {
       this._updateGameplay(delta, elapsedTime);
+
+      if (this.isOverheadView && this.player) {
+        const px = this.player.camera.position.x;
+        const pz = this.player.camera.position.z;
+        this.overheadCamera.position.set(px, 38, pz);
+        this.overheadCamera.lookAt(px, 0, pz);
+      }
     }
 
     this._updateFPSCounter(delta);
-    this.renderer.render(this.scene, this.camera);
+    this.renderer.render(this.scene, this.activeCamera);
   }
 
   _updateFPSCounter(delta) {
@@ -418,8 +446,11 @@ class MazeEscapeGame {
   }
 
   _onResize() {
-    this.camera.aspect = window.innerWidth / window.innerHeight;
+    const aspect = window.innerWidth / window.innerHeight;
+    this.camera.aspect = aspect;
     this.camera.updateProjectionMatrix();
+    this.overheadCamera.aspect = aspect;
+    this.overheadCamera.updateProjectionMatrix();
     this.renderer.setSize(window.innerWidth, window.innerHeight);
   }
 
@@ -463,5 +494,6 @@ class MazeEscapeGame {
 }
 
 window.addEventListener('DOMContentLoaded', () => {
-  new MazeEscapeGame();
+  const game = new MazeEscapeGame();
+  window._gameToggleView = () => game._toggleOverheadView();
 });
