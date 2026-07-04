@@ -188,17 +188,20 @@ export class Maze {
   }
 
   _buildCeiling() {
-    const loader = new THREE.CubeTextureLoader();
-    const cubeTexture = loader.load([
-      'textures/skybox/px.png',
-      'textures/skybox/nx.png',
-      'textures/skybox/py.png',
-      'textures/skybox/ny.png',
-      'textures/skybox/pz.png',
-      'textures/skybox/nz.png',
-    ]);
-    cubeTexture.colorSpace = THREE.SRGBColorSpace;
-    this.scene.background = cubeTexture;
+    const loader = new THREE.TextureLoader();
+    loader.load(
+      'textures/langit.jpg',
+      (texture) => {
+        texture.mapping = THREE.EquirectangularReflectionMapping;
+        texture.colorSpace = THREE.SRGBColorSpace;
+        this.scene.background = texture;
+      },
+      undefined,
+      () => {
+        // Fallback: warna gelap jika file tidak ditemukan
+        this.scene.background = new THREE.Color(0x000008);
+      }
+    );
   }
 
   _buildWalls() {
