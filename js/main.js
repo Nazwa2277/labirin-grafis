@@ -115,6 +115,15 @@ class MazeEscapeGame {
   _toggleOverheadView() {
     this.isOverheadView = !this.isOverheadView;
     this.activeCamera = this.isOverheadView ? this.overheadCamera : this.camera;
+
+    // Sembunyikan kunci dan pintu jika di overhead view (mencegah curang)
+    if (this.gameKey && this.gameKey.group) {
+      this.gameKey.group.visible = !this.isOverheadView;
+    }
+    if (this.door && this.door.group) {
+      this.door.group.visible = !this.isOverheadView;
+    }
+
     const btn = document.getElementById('btn-view-toggle');
     if (btn) btn.textContent = this.isOverheadView ? '👁 FPS' : '🗺 Atas';
   }
@@ -292,6 +301,12 @@ class MazeEscapeGame {
     this.player.hasKey = false;
     this.player.isCaught = false;
 
+    // Reset camera view dan kembalikan visibility kunci/pintu
+    this.isOverheadView = false;
+    this.activeCamera = this.camera;
+    const btn = document.getElementById('btn-view-toggle');
+    if (btn) btn.textContent = '🗺 Atas';
+
     this.enemy.setGridPosition(ENEMY_SPAWN.col, ENEMY_SPAWN.row);
     this.enemy.state = 'PATROL';
     this.enemy.path = [];
@@ -303,11 +318,13 @@ class MazeEscapeGame {
     this.gameKey.collected = false;
     this.gameKey.basePosition.set(newKeyWorld.x, 1.1, newKeyWorld.z);
     this.gameKey.group.position.copy(this.gameKey.basePosition);
+    this.gameKey.group.visible = true; // Pastikan kunci kelihatan
     if (!this.gameKey.group.parent) this.gameKey.scene.add(this.gameKey.group);
 
     const newDoorWorld = gridToWorld(doorPos.col, doorPos.row);
     this.door.position.set(newDoorWorld.x, 0, newDoorWorld.z);
     this.door.group.position.copy(this.door.position);
+    this.door.group.visible = true; // Pastikan pintu kelihatan
     this.door.reset();
 
     this.timerRemaining = this.timerSeconds;
