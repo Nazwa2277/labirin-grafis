@@ -430,6 +430,12 @@ class MazeEscapeGame {
       }
     }
 
+    // Skybox selalu ikuti kamera agar tidak terpengaruh fog
+    if (this.maze && this.maze.skyBox) {
+      const cam = this.activeCamera;
+      this.maze.skyBox.position.copy(cam.position);
+    }
+
     this._updateFPSCounter(delta);
     this.renderer.render(this.scene, this.activeCamera);
   }

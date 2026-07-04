@@ -300,22 +300,19 @@ export class Maze {
     // BoxGeometry skybox — tidak ada pole, tidak ada distorsi
     const skyGeo = new THREE.BoxGeometry(240, 240, 240);
     const skyMats = [
-      new THREE.MeshBasicMaterial({ map: texRight, side: THREE.BackSide, depthWrite: false }),
-      new THREE.MeshBasicMaterial({ map: texLeft,  side: THREE.BackSide, depthWrite: false }),
-      new THREE.MeshBasicMaterial({ map: texTop,   side: THREE.BackSide, depthWrite: false }),
-      new THREE.MeshBasicMaterial({ map: texBot,   side: THREE.BackSide, depthWrite: false }),
-      new THREE.MeshBasicMaterial({ map: texFront, side: THREE.BackSide, depthWrite: false }),
-      new THREE.MeshBasicMaterial({ map: texBack,  side: THREE.BackSide, depthWrite: false }),
+      new THREE.MeshBasicMaterial({ map: texRight, side: THREE.BackSide, depthWrite: false, fog: false }),
+      new THREE.MeshBasicMaterial({ map: texLeft,  side: THREE.BackSide, depthWrite: false, fog: false }),
+      new THREE.MeshBasicMaterial({ map: texTop,   side: THREE.BackSide, depthWrite: false, fog: false }),
+      new THREE.MeshBasicMaterial({ map: texBot,   side: THREE.BackSide, depthWrite: false, fog: false }),
+      new THREE.MeshBasicMaterial({ map: texFront, side: THREE.BackSide, depthWrite: false, fog: false }),
+      new THREE.MeshBasicMaterial({ map: texBack,  side: THREE.BackSide, depthWrite: false, fog: false }),
     ];
 
     const skyBox = new THREE.Mesh(skyGeo, skyMats);
-    skyBox.position.set(
-      (this.grid[0].length * CELL_SIZE) / 2 - CELL_SIZE / 2,
-      0,
-      (this.grid.length * CELL_SIZE) / 2 - CELL_SIZE / 2
-    );
+    skyBox.renderOrder = -1;
     skyBox.name = 'SkyBox';
-    this.group.add(skyBox);
+    this.skyBox = skyBox;
+    this.scene.add(skyBox);
   }
 
   _buildWalls() {
