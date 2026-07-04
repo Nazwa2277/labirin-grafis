@@ -188,152 +188,134 @@ export class Maze {
   }
 
   _buildCeiling() {
-    const skyGeo = new THREE.SphereGeometry(120, 32, 16);
-    skyGeo.scale(-1, 1, -1);
-
     const S = 1024;
-    const skyCanvas = document.createElement('canvas');
-    skyCanvas.width = S;
-    skyCanvas.height = S;
-    const ctx = skyCanvas.getContext('2d');
 
-    const grad = ctx.createLinearGradient(0, 0, 0, S);
-    grad.addColorStop(0.0, '#000005');
-    grad.addColorStop(0.25, '#02020c');
-    grad.addColorStop(0.6, '#060414');
-    grad.addColorStop(1.0, '#0e0920');
-    ctx.fillStyle = grad;
-    ctx.fillRect(0, 0, S, S);
-
-    // Milky Way kabut tipis
-    for (let i = 0; i < 4; i++) {
-      const mwGrad = ctx.createLinearGradient(S * 0.1 + i * 60, 0, S * 0.5 + i * 60, S * 0.7);
-      mwGrad.addColorStop(0, 'rgba(80,70,130,0)');
-      mwGrad.addColorStop(0.4, `rgba(60,55,110,${0.04 + i * 0.01})`);
-      mwGrad.addColorStop(1, 'rgba(40,35,80,0)');
-      ctx.fillStyle = mwGrad;
-      ctx.fillRect(0, 0, S, S);
-    }
+    // Helper buat texture canvas untuk satu sisi skybox
+    const makeSkyFace = (drawFn) => {
+      const c = document.createElement('canvas');
+      c.width = S; c.height = S;
+      const ctx = c.getContext('2d');
+      drawFn(ctx, c);
+      const t = new THREE.CanvasTexture(c);
+      t.colorSpace = THREE.SRGBColorSpace;
+      return t;
+    };
 
     // RNG deterministik
     let seed = 42;
     const rand = () => { seed = (seed * 9301 + 49297) % 233280; return seed / 233280; };
 
-    // Bintang kecil 700 — warna spektral
-    for (let i = 0; i < 700; i++) {
-      const x = rand() * S;
-      const y = rand() * S * 0.85;
-      const r = rand() * 0.6 + 0.2;
-      const a = rand() * 0.5 + 0.25;
-      const hue = rand();
-      let color;
-      if (hue < 0.3)       color = `rgba(180,200,255,${a})`;
-      else if (hue < 0.65) color = `rgba(255,255,255,${a})`;
-      else if (hue < 0.85) color = `rgba(255,245,200,${a})`;
-      else                 color = `rgba(255,210,160,${a})`;
-      ctx.beginPath();
-      ctx.arc(x, y, r, 0, Math.PI * 2);
-      ctx.fillStyle = color;
-      ctx.fill();
-    }
+    const drawStars = (ctx, includeMoon = false) => {
+      // Background gelap
+      const grad = ctx.createLinearGradient(0, 0, 0, S);
+      grad.addColorStop(0.0,  '#000004');
+      grad.addColorStop(0.5,  '#02020a');
+      grad.addColorStop(1.0,  '#050310');
+      ctx.fillStyle = grad;
+      ctx.fillRect(0, 0, S, S);
 
-    // Bintang sedang 40 — glow sangat tipis
-    for (let i = 0; i < 40; i++) {
-      const x = rand() * S;
-      const y = rand() * S * 0.82;
-      const r = rand() * 0.8 + 0.5;
-      const a = rand() * 0.4 + 0.5;
-      const hue = rand();
-      let rgb;
-      if (hue < 0.3)       rgb = '190,210,255';
-      else if (hue < 0.65) rgb = '255,255,255';
-      else                 rgb = '255,248,210';
-      ctx.beginPath();
-      ctx.arc(x, y, r, 0, Math.PI * 2);
-      ctx.fillStyle = `rgba(${rgb},${a})`;
-      ctx.fill();
-      const g = ctx.createRadialGradient(x, y, 0, x, y, r * 1.8);
-      g.addColorStop(0, `rgba(${rgb},${a * 0.25})`);
-      g.addColorStop(1, `rgba(${rgb},0)`);
-      ctx.beginPath();
-      ctx.arc(x, y, r * 1.8, 0, Math.PI * 2);
-      ctx.fillStyle = g;
-      ctx.fill();
-    }
+      // Bintang kecil
+      for (let i = 0; i < 500; i++) {
+        const x = rand() * S, y = rand() * S;
+        const r = rand() * 0.55 + 0.15;
+        const a = rand() * 0.55 + 0.25;
+        const h = rand();
+        let col;
+        if (h < 0.3)       col = `rgba(180,200,255,${a})`;
+        else if (h < 0.65) col = `rgba(255,255,255,${a})`;
+        else if (h < 0.85) col = `rgba(255,245,200,${a})`;
+        else               col = `rgba(255,210,160,${a})`;
+        ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2);
+        ctx.fillStyle = col; ctx.fill();
+      }
 
-    // Bintang terang 8 — glow kecil dengan spike salib tipis
-    for (let i = 0; i < 8; i++) {
-      const x = rand() * S;
-      const y = rand() * S * 0.78;
-      const r = rand() * 1.0 + 0.8;
-      const a = rand() * 0.3 + 0.6;
-      const gl = ctx.createRadialGradient(x, y, 0, x, y, r * 4);
-      gl.addColorStop(0, 'rgba(200,220,255,0.35)');
-      gl.addColorStop(0.4, 'rgba(180,200,255,0.08)');
-      gl.addColorStop(1, 'rgba(150,180,255,0)');
-      ctx.beginPath();
-      ctx.arc(x, y, r * 4, 0, Math.PI * 2);
-      ctx.fillStyle = gl;
-      ctx.fill();
-      ctx.beginPath();
-      ctx.arc(x, y, r, 0, Math.PI * 2);
-      ctx.fillStyle = `rgba(220,235,255,${a})`;
-      ctx.fill();
-      ctx.save();
-      ctx.globalAlpha = 0.15;
-      ctx.strokeStyle = 'rgba(200,220,255,1)';
-      ctx.lineWidth = 0.4;
-      ctx.beginPath();
-      ctx.moveTo(x - r * 4, y); ctx.lineTo(x + r * 4, y);
-      ctx.moveTo(x, y - r * 4); ctx.lineTo(x, y + r * 4);
-      ctx.stroke();
-      ctx.restore();
-    }
+      // Bintang sedang — 25 bintang, glow sangat kecil
+      for (let i = 0; i < 25; i++) {
+        const x = rand() * S, y = rand() * S;
+        const r = rand() * 0.7 + 0.45;
+        const a = rand() * 0.4 + 0.5;
+        ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2);
+        ctx.fillStyle = `rgba(255,255,255,${a})`; ctx.fill();
+        const g = ctx.createRadialGradient(x, y, 0, x, y, r * 1.6);
+        g.addColorStop(0, `rgba(220,230,255,${a * 0.2})`);
+        g.addColorStop(1, 'rgba(220,230,255,0)');
+        ctx.beginPath(); ctx.arc(x, y, r * 1.6, 0, Math.PI * 2);
+        ctx.fillStyle = g; ctx.fill();
+      }
 
-    // Bulan kecil (radius 8px) dengan fase sabit dan tekstur kawah
-    const moonX = 820, moonY = 110, moonR = 8;
-    const moonHalo = ctx.createRadialGradient(moonX, moonY, moonR * 0.8, moonX, moonY, moonR * 6);
-    moonHalo.addColorStop(0, 'rgba(230,230,200,0.12)');
-    moonHalo.addColorStop(0.5, 'rgba(200,200,160,0.04)');
-    moonHalo.addColorStop(1, 'rgba(180,180,140,0)');
-    ctx.beginPath();
-    ctx.arc(moonX, moonY, moonR * 6, 0, Math.PI * 2);
-    ctx.fillStyle = moonHalo;
-    ctx.fill();
-    ctx.beginPath();
-    ctx.arc(moonX, moonY, moonR, 0, Math.PI * 2);
-    ctx.fillStyle = '#e8e4d0';
-    ctx.fill();
-    ctx.globalAlpha = 0.18;
-    ctx.beginPath(); ctx.arc(moonX - 2.5, moonY - 1, 2.2, 0, Math.PI * 2);
-    ctx.fillStyle = '#a09878'; ctx.fill();
-    ctx.beginPath(); ctx.arc(moonX + 2, moonY + 2.5, 1.5, 0, Math.PI * 2);
-    ctx.fillStyle = '#b0a888'; ctx.fill();
-    ctx.beginPath(); ctx.arc(moonX - 1, moonY + 3, 1.0, 0, Math.PI * 2);
-    ctx.fillStyle = '#988c6a'; ctx.fill();
-    ctx.globalAlpha = 1.0;
-    ctx.beginPath();
-    ctx.arc(moonX + 2.5, moonY, moonR * 0.92, 0, Math.PI * 2);
-    ctx.fillStyle = '#02020c';
-    ctx.fill();
+      if (includeMoon) {
+        // Bulan merah darah seram — radius 14px
+        const mx = 760, my = 160, mr = 14;
 
-    const skyTexture = new THREE.CanvasTexture(skyCanvas);
-    skyTexture.colorSpace = THREE.SRGBColorSpace;
+        // Aura merah suram di sekitar bulan
+        const aura = ctx.createRadialGradient(mx, my, mr, mx, my, mr * 7);
+        aura.addColorStop(0,   'rgba(180,20,0,0.22)');
+        aura.addColorStop(0.4, 'rgba(120,10,0,0.08)');
+        aura.addColorStop(1,   'rgba(80,0,0,0)');
+        ctx.beginPath(); ctx.arc(mx, my, mr * 7, 0, Math.PI * 2);
+        ctx.fillStyle = aura; ctx.fill();
 
-    const skyMat = new THREE.MeshBasicMaterial({
-      map: skyTexture,
-      side: THREE.BackSide,
-      depthWrite: false,
+        // Disc bulan — gradient merah-oranye redup
+        const moonGrad = ctx.createRadialGradient(mx - mr * 0.3, my - mr * 0.3, 0, mx, my, mr);
+        moonGrad.addColorStop(0,   '#c84020');
+        moonGrad.addColorStop(0.5, '#8a1a08');
+        moonGrad.addColorStop(1,   '#3a0800');
+        ctx.beginPath(); ctx.arc(mx, my, mr, 0, Math.PI * 2);
+        ctx.fillStyle = moonGrad; ctx.fill();
+
+        // Tekstur kawah gelap
+        ctx.globalAlpha = 0.35;
+        [[mx-4, my-3, 3.5], [mx+4, my+3, 2.5], [mx-2, my+5, 2], [mx+5, my-4, 1.5]].forEach(([cx,cy,cr]) => {
+          ctx.beginPath(); ctx.arc(cx, cy, cr, 0, Math.PI * 2);
+          ctx.fillStyle = '#1a0400'; ctx.fill();
+        });
+        ctx.globalAlpha = 1.0;
+
+        // Retakan / garis seram di permukaan bulan
+        ctx.save();
+        ctx.globalAlpha = 0.45;
+        ctx.strokeStyle = '#ff4400';
+        ctx.lineWidth = 0.6;
+        ctx.shadowColor = '#ff2200';
+        ctx.shadowBlur = 3;
+        ctx.beginPath();
+        ctx.moveTo(mx - 6, my - 2); ctx.lineTo(mx + 2, my + 5);
+        ctx.moveTo(mx + 4, my - 5); ctx.lineTo(mx - 1, my + 6);
+        ctx.moveTo(mx - 3, my + 2); ctx.lineTo(mx + 6, my - 3);
+        ctx.stroke();
+        ctx.restore();
+      }
+    };
+
+    // Buat 6 sisi skybox — sisi atas (top) dan sisi samping
+    const texTop   = makeSkyFace((ctx) => { seed = 42; drawStars(ctx, false); });
+    const texFront = makeSkyFace((ctx) => { seed = 99; drawStars(ctx, true); });
+    const texBack  = makeSkyFace((ctx) => { seed = 155; drawStars(ctx, false); });
+    const texLeft  = makeSkyFace((ctx) => { seed = 211; drawStars(ctx, false); });
+    const texRight = makeSkyFace((ctx) => { seed = 267; drawStars(ctx, false); });
+    const texBot   = makeSkyFace((ctx) => {
+      ctx.fillStyle = '#000004'; ctx.fillRect(0, 0, S, S);
     });
 
-    this.skyDome = new THREE.Mesh(skyGeo, skyMat);
-    this.skyDome.position.set(
+    // BoxGeometry skybox — tidak ada pole, tidak ada distorsi
+    const skyGeo = new THREE.BoxGeometry(240, 240, 240);
+    const skyMats = [
+      new THREE.MeshBasicMaterial({ map: texRight, side: THREE.BackSide, depthWrite: false }),
+      new THREE.MeshBasicMaterial({ map: texLeft,  side: THREE.BackSide, depthWrite: false }),
+      new THREE.MeshBasicMaterial({ map: texTop,   side: THREE.BackSide, depthWrite: false }),
+      new THREE.MeshBasicMaterial({ map: texBot,   side: THREE.BackSide, depthWrite: false }),
+      new THREE.MeshBasicMaterial({ map: texFront, side: THREE.BackSide, depthWrite: false }),
+      new THREE.MeshBasicMaterial({ map: texBack,  side: THREE.BackSide, depthWrite: false }),
+    ];
+
+    const skyBox = new THREE.Mesh(skyGeo, skyMats);
+    skyBox.position.set(
       (this.grid[0].length * CELL_SIZE) / 2 - CELL_SIZE / 2,
       0,
       (this.grid.length * CELL_SIZE) / 2 - CELL_SIZE / 2
     );
-    this.skyDome.name = 'SkyDome';
-    this.group.add(this.skyDome);
+    skyBox.name = 'SkyBox';
+    this.group.add(skyBox);
   }
 
   _buildWalls() {
