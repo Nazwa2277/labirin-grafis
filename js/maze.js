@@ -300,16 +300,16 @@ export class Maze {
     // BoxGeometry skybox — tidak ada pole, tidak ada distorsi
     const skyGeo = new THREE.BoxGeometry(240, 240, 240);
     const skyMats = [
-      new THREE.MeshBasicMaterial({ map: texRight, side: THREE.BackSide, depthWrite: false, fog: false }),
-      new THREE.MeshBasicMaterial({ map: texLeft,  side: THREE.BackSide, depthWrite: false, fog: false }),
-      new THREE.MeshBasicMaterial({ map: texTop,   side: THREE.BackSide, depthWrite: false, fog: false }),
-      new THREE.MeshBasicMaterial({ map: texBot,   side: THREE.BackSide, depthWrite: false, fog: false }),
-      new THREE.MeshBasicMaterial({ map: texFront, side: THREE.BackSide, depthWrite: false, fog: false }),
-      new THREE.MeshBasicMaterial({ map: texBack,  side: THREE.BackSide, depthWrite: false, fog: false }),
+      new THREE.MeshBasicMaterial({ map: texRight, side: THREE.BackSide, depthWrite: false, depthTest: false, fog: false }),
+      new THREE.MeshBasicMaterial({ map: texLeft,  side: THREE.BackSide, depthWrite: false, depthTest: false, fog: false }),
+      new THREE.MeshBasicMaterial({ map: texTop,   side: THREE.BackSide, depthWrite: false, depthTest: false, fog: false }),
+      new THREE.MeshBasicMaterial({ map: texBot,   side: THREE.BackSide, depthWrite: false, depthTest: false, fog: false }),
+      new THREE.MeshBasicMaterial({ map: texFront, side: THREE.BackSide, depthWrite: false, depthTest: false, fog: false }),
+      new THREE.MeshBasicMaterial({ map: texBack,  side: THREE.BackSide, depthWrite: false, depthTest: false, fog: false }),
     ];
 
     const skyBox = new THREE.Mesh(skyGeo, skyMats);
-    skyBox.renderOrder = -1;
+    skyBox.renderOrder = -999;
     skyBox.name = 'SkyBox';
     this.skyBox = skyBox;
     this.scene.add(skyBox);
