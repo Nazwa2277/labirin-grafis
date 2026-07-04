@@ -139,7 +139,6 @@ class MazeEscapeGame {
     this.fogDensity = 0.012;
     this.scene.fog = new THREE.FogExp2(this.fogColor, this.fogDensity);
     this.scene.background = null;
-    this.renderer.setClearColor(0x000005, 1);
     this.fogEnabled = true;
   }
 
@@ -437,8 +436,7 @@ class MazeEscapeGame {
       this.maze.skyBox.position.copy(cam.position);
     }
 
-    this._updateFPSCounter(delta);
-    this.renderer.render(this.scene, this.activeCamera);
+    this._updateFPSCounter(delta);    this.renderer.render(this.scene, this.activeCamera);
   }
 
   _updateFPSCounter(delta) {
