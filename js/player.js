@@ -227,6 +227,13 @@ export class Player {
 
     this.camera.position.y = PLAYER_HEIGHT;
 
+    // Batasi pitch agar tidak lihat melewati atas dinding
+    this.camera.rotation.order = 'YXZ';
+    this.camera.rotation.x = Math.max(
+      -Math.PI / 3,
+      Math.min(Math.PI / 3, this.camera.rotation.x)
+    );
+
     const doorCollider = this.door ? this.door.getCollider() : null;
     const extra = doorCollider ? [doorCollider] : [];
     this.maze.resolveCollision(this.camera.position, PLAYER_RADIUS, extra);
