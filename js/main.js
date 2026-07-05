@@ -54,6 +54,9 @@ class MazeEscapeGame {
       enemyStatusText: document.getElementById('enemy-status-text'),
       fpsCounter: document.getElementById('fps-counter'),
       dangerVignette: document.getElementById('danger-vignette'),
+      glitchOverlay: document.getElementById('glitch-overlay'),
+      jumpscareOverlay: document.getElementById('jumpscare-overlay'),
+      jumpscareCanvas: document.getElementById('jumpscare-canvas'),
       minimapCanvas: document.getElementById('minimap-canvas'),
 
       startScreen: document.getElementById('start-screen'),
@@ -290,6 +293,11 @@ class MazeEscapeGame {
     if (!IS_MOBILE && this.player.controls.isLocked) this.player.controls.unlock();
     this.particles.spawnGameOverEffect(this.camera.position);
     this.audio.stopTensionDrone(1.0);
+
+    // Nonaktifkan jumpscare dan sembunyikan overlay-nya
+    this.isJumpscareActive = false;
+    if (this.dom.jumpscareOverlay) this.dom.jumpscareOverlay.classList.add('hidden');
+
     this.dom.gameoverReasonText.textContent = reason;
     this.dom.gameoverScreen.classList.remove('hidden');
   }
@@ -306,6 +314,10 @@ class MazeEscapeGame {
     this.activeCamera = this.camera;
     const btn = document.getElementById('btn-view-toggle');
     if (btn) btn.textContent = '🗺 Atas';
+
+    // Reset jumpscare
+    this.isJumpscareActive = false;
+    if (this.dom.jumpscareOverlay) this.dom.jumpscareOverlay.classList.add('hidden');
 
     this.enemy.setGridPosition(ENEMY_SPAWN.col, ENEMY_SPAWN.row);
     this.enemy.state = 'PATROL';
@@ -381,6 +393,20 @@ class MazeEscapeGame {
     this.dom.enemyStatusText.textContent = this.enemy.getStatusLabel();
     this.dom.enemyStatusText.classList.toggle('alert', isChasing);
     this.dom.dangerVignette.classList.toggle('active', isChasing);
+
+    if (this.dom.glitchOverlay) {
+      if (isChasing && this.enemy && this.player) {
+        this.dom.glitchOverlay.classList.add('active');
+        const enemyPos = this.enemy.group.position;
+        const playerPos = this.player.camera.position;
+        const dist = enemyPos.distanceTo(playerPos);
+        const intensity = Math.max(0, 1 - dist / 12);
+        this.dom.glitchOverlay.style.opacity = (0.15 + intensity * 0.75).toString();
+      } else {
+        this.dom.glitchOverlay.classList.remove('active');
+        this.dom.glitchOverlay.style.opacity = '0';
+      }
+    }
   }
 
   _updateAudio(delta) {
@@ -426,7 +452,10 @@ class MazeEscapeGame {
     if (this.enemy.hasCaughtPlayer && !this.player.isCaught) {
       this.player.isCaught = true;
       this.audio.playMonsterJumpscare();
-      this._triggerGameOver('Kamu tertangkap monster di dalam labirin...');
+      this._triggerJumpscare();
+      setTimeout(() => {
+        this._triggerGameOver('Kamu tertangkap Kuntilanak di dalam labirin...');
+      }, 1800);
     }
   }
 
@@ -453,7 +482,218 @@ class MazeEscapeGame {
       this.maze.skyBox.position.copy(cam.position);
     }
 
-    this._updateFPSCounter(delta);    this.renderer.render(this.scene, this.activeCamera);
+    this._updateFPSCounter(delta);
+
+    // Terapkan guncangan kamera (camera shake) jika dikejar hantu
+    let originalPos = null;
+    let originalRot = null;
+    let shakeApplied = false;
+
+    if (this.state === GameState.PLAYING && !this.isOverheadView && this.enemy && this.player) {
+      const enemyPos = this.enemy.group.position;
+      const playerPos = this.player.camera.position;
+      const dist = enemyPos.distanceTo(playerPos);
+      
+      if (this.enemy.state === 'CHASE' && dist < 12) {
+        shakeApplied = true;
+        originalPos = this.activeCamera.position.clone();
+        originalRot = this.activeCamera.rotation.clone();
+
+        const intensity = Math.max(0, 1 - dist / 12);
+        const shakeAmount = intensity * 0.08; // Maksimal offset 8cm
+        
+        this.activeCamera.position.x += (Math.random() - 0.5) * shakeAmount;
+        this.activeCamera.position.y += (Math.random() - 0.5) * shakeAmount;
+        this.activeCamera.position.z += (Math.random() - 0.5) * shakeAmount;
+
+        this.activeCamera.rotation.x += (Math.random() - 0.5) * shakeAmount * 0.3;
+        this.activeCamera.rotation.y += (Math.random() - 0.5) * shakeAmount * 0.3;
+        this.activeCamera.rotation.z += (Math.random() - 0.5) * shakeAmount * 0.5;
+      }
+    }
+
+    this.renderer.render(this.scene, this.activeCamera);
+
+    if (shakeApplied && originalPos && originalRot) {
+      this.activeCamera.position.copy(originalPos);
+      this.activeCamera.rotation.copy(originalRot);
+    }
+  }
+
+  _triggerJumpscare() {
+    this.isJumpscareActive = true;
+    const overlay = this.dom.jumpscareOverlay;
+    const canvas = this.dom.jumpscareCanvas;
+    if (!overlay || !canvas) return;
+
+    overlay.classList.remove('hidden');
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+    const ctx = canvas.getContext('2d');
+
+    const drawFrame = () => {
+      if (!this.isJumpscareActive) return;
+
+      const w = canvas.width = window.innerWidth;
+      const h = canvas.height = window.innerHeight;
+
+      // Draw background hitam kelam
+      ctx.fillStyle = '#050000';
+      ctx.fillRect(0, 0, w, h);
+
+      ctx.save();
+
+      // Efek guncangan jumpscare
+      const shakeX = (Math.random() - 0.5) * 50;
+      const shakeY = (Math.random() - 0.5) * 50;
+      const scale = 1.05 + Math.random() * 0.15;
+      
+      ctx.translate(w / 2 + shakeX, h / 2 + shakeY);
+      ctx.scale(scale, scale);
+
+      // Pancaran merah menyeramkan di belakang kepala
+      const grad = ctx.createRadialGradient(0, 0, 10, 0, 0, Math.min(w, h) * 0.55);
+      grad.addColorStop(0, 'rgba(180, 0, 0, 0.45)');
+      grad.addColorStop(1, 'rgba(0, 0, 0, 0)');
+      ctx.fillStyle = grad;
+      ctx.fillRect(-w, -h, w*2, h*2);
+
+      const size = Math.min(w, h) * 0.4;
+
+      // 1. Wajah putih kehijauan membusuk
+      ctx.fillStyle = 'rgba(215, 225, 210, 0.9)';
+      ctx.beginPath();
+      const headOffset = (Math.random() - 0.5) * 8;
+      ctx.ellipse(headOffset, -size * 0.05, size * 0.72, size * 0.95, 0, 0, Math.PI * 2);
+      ctx.fill();
+
+      // 2. Lubang mata hitam pekat melompong
+      ctx.fillStyle = '#000000';
+      ctx.beginPath();
+      ctx.ellipse(-size * 0.25, -size * 0.15, size * 0.15 + Math.random()*5, size * 0.2 + Math.random()*5, 0.1, 0, Math.PI * 2);
+      ctx.ellipse(size * 0.25, -size * 0.15, size * 0.15 + Math.random()*5, size * 0.2 + Math.random()*5, -0.1, 0, Math.PI * 2);
+      ctx.fill();
+
+      // 3. Cairan hitam mengalir dari mata
+      ctx.strokeStyle = '#000';
+      ctx.lineWidth = size * 0.035;
+      ctx.lineCap = 'round';
+      [-0.27, -0.21, 0.21, 0.27].forEach(offset => {
+        ctx.beginPath();
+        ctx.moveTo(size * offset, -size * 0.08);
+        ctx.bezierCurveTo(
+          size * offset, size * 0.1,
+          size * offset + (Math.random() - 0.5) * 15, size * 0.2,
+          size * offset + (Math.random() - 0.5) * 5, size * 0.45 + Math.random() * 20
+        );
+        ctx.stroke();
+      });
+
+      // 4. Pupil merah menyala bergetar liar
+      ctx.fillStyle = '#ff0000';
+      ctx.beginPath();
+      ctx.arc(-size * 0.25 + (Math.random() - 0.5) * 8, -size * 0.15 + (Math.random() - 0.5) * 8, size * 0.035 + Math.random() * 2, 0, Math.PI * 2);
+      ctx.arc(size * 0.25 + (Math.random() - 0.5) * 8, -size * 0.15 + (Math.random() - 0.5) * 8, size * 0.035 + Math.random() * 2, 0, Math.PI * 2);
+      ctx.fill();
+
+      // 5. Rongga hidung membusuk
+      ctx.fillStyle = '#080808';
+      ctx.beginPath();
+      ctx.moveTo(-size * 0.03, size * 0.05);
+      ctx.quadraticCurveTo(0, size * 0.02, size * 0.03, size * 0.05);
+      ctx.lineTo(size * 0.04, size * 0.12);
+      ctx.quadraticCurveTo(0, size * 0.16, -size * 0.04, size * 0.12);
+      ctx.closePath();
+      ctx.fill();
+
+      // 6. Mulut mangap lebar terdistorsi
+      ctx.fillStyle = '#020202';
+      ctx.beginPath();
+      const mouthWidth = size * 0.35 + Math.random() * 10;
+      const mouthHeight = size * 0.38 + Math.random() * 25;
+      ctx.ellipse(0, size * 0.32, mouthWidth, mouthHeight, 0, 0, Math.PI * 2);
+      ctx.fill();
+
+      // 7. Gigi tajam kotor bergerigi
+      ctx.fillStyle = '#f5f0eb';
+      const teethCount = 7;
+      for(let i=0; i<teethCount; i++) {
+        const tx = -mouthWidth * 0.7 + (mouthWidth * 1.4) * (i / (teethCount - 1));
+        const ty = size * 0.22 + Math.abs(tx) * 0.2;
+        const toothLen = size * 0.08 + Math.random() * 10;
+        ctx.beginPath();
+        ctx.moveTo(tx - 6, ty);
+        ctx.lineTo(tx, ty + toothLen);
+        ctx.lineTo(tx + 6, ty);
+        ctx.fill();
+      }
+      for(let i=0; i<teethCount - 1; i++) {
+        const tx = -mouthWidth * 0.6 + (mouthWidth * 1.2) * ((i + 0.5) / (teethCount - 1));
+        const ty = size * 0.42 - Math.abs(tx) * 0.2;
+        const toothLen = size * 0.08 + Math.random() * 10;
+        ctx.beginPath();
+        ctx.moveTo(tx - 6, ty);
+        ctx.lineTo(tx, ty - toothLen);
+        ctx.lineTo(tx + 6, ty);
+        ctx.fill();
+      }
+
+      // 8. Darah menetes dari mulut
+      ctx.fillStyle = 'rgba(130, 2, 2, 0.85)';
+      ctx.beginPath();
+      ctx.ellipse(0, size * 0.48, mouthWidth * 0.6, size * 0.06, 0, 0, Math.PI * 2);
+      ctx.fill();
+      
+      ctx.strokeStyle = 'rgba(130, 2, 2, 0.9)';
+      ctx.lineWidth = size * 0.03;
+      for (let d = 0; d < 3; d++) {
+        const dx = (d - 1) * size * 0.15 + (Math.random() - 0.5) * 10;
+        ctx.beginPath();
+        ctx.moveTo(dx, size * 0.48);
+        ctx.lineTo(dx + (Math.random() - 0.5) * 8, size * 0.58 + Math.random() * 30);
+        ctx.stroke();
+      }
+
+      // 9. Rambut gimbal berantakan menjuntai tidak keruan
+      ctx.strokeStyle = '#050505';
+      ctx.lineWidth = size * 0.022;
+      for (let h = 0; h < 60; h++) {
+        const hairStartX = -size * 0.8 + Math.random() * size * 1.6;
+        const hairStartY = -size * 1.0;
+        ctx.beginPath();
+        ctx.moveTo(hairStartX, hairStartY);
+        
+        ctx.bezierCurveTo(
+          hairStartX + (Math.random() - 0.5) * 80, -size * 0.3,
+          hairStartX + (Math.random() - 0.5) * 80, size * 0.3,
+          hairStartX + (Math.random() - 0.5) * 60, size * 1.2
+        );
+        ctx.stroke();
+      }
+
+      ctx.restore();
+
+      // Scanlines & RGB split flash
+      if (Math.random() > 0.82) {
+        ctx.fillStyle = 'rgba(255, 0, 0, 0.12)';
+        ctx.fillRect(0, 0, w, h);
+      } else if (Math.random() > 0.92) {
+        ctx.fillStyle = 'rgba(0, 0, 255, 0.12)';
+        ctx.fillRect(0, 0, w, h);
+      }
+
+      // Scanline noise overlay
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.03)';
+      for (let y = 0; y < h; y += 4) {
+        if (Math.random() > 0.3) {
+          ctx.fillRect(0, y, w, 2);
+        }
+      }
+
+      requestAnimationFrame(drawFrame);
+    };
+
+    drawFrame();
   }
 
   _updateFPSCounter(delta) {

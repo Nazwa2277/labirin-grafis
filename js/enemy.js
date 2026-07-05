@@ -27,6 +27,7 @@ export class Enemy {
     this.repathTimer = 0;
     this.patrolIndex = 0;
     this.hasCaughtPlayer = false;
+    this.trailParticles = [];
 
     this._buildMesh();
     this.setGridPosition(spawnGridPos.col, spawnGridPos.row);
@@ -39,48 +40,162 @@ export class Enemy {
     this.group = new THREE.Group();
     this.group.name = 'Enemy';
 
-    const bodyMat = new THREE.MeshStandardMaterial({
-      color: 0x1a0505,
-      roughness: 0.85,
-      metalness: 0.1,
-      emissive: 0x330000,
-      emissiveIntensity: 0.15,
+    // 1. Procedural bloody and dirty cloth texture for Kuntilanak's dress
+    const canvas = document.createElement('canvas');
+    canvas.width = 256;
+    canvas.height = 512;
+    const ctx = canvas.getContext('2d');
+    
+    // Base color: pale dirty white/grey
+    ctx.fillStyle = '#eaeae5';
+    ctx.fillRect(0, 0, 256, 512);
+    
+    // Mud/dirt spots
+    for (let i = 0; i < 40; i++) {
+      ctx.fillStyle = 'rgba(65, 55, 45, 0.4)';
+      ctx.beginPath();
+      ctx.arc(Math.random() * 256, Math.random() * 512, Math.random() * 15 + 5, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    
+    // Blood spots and smears (dark and bright crimson)
+    for (let i = 0; i < 30; i++) {
+      ctx.fillStyle = Math.random() > 0.4 ? 'rgba(100, 5, 5, 0.8)' : 'rgba(150, 10, 10, 0.9)';
+      ctx.beginPath();
+      const x = Math.random() * 256;
+      const y = Math.random() * 512;
+      const rx = Math.random() * 12 + 3;
+      const ry = Math.random() * 24 + 6;
+      ctx.ellipse(x, y, rx, ry, Math.random() * Math.PI, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    
+    const dressTexture = new THREE.CanvasTexture(canvas);
+    const dressMat = new THREE.MeshStandardMaterial({
+      map: dressTexture,
+      roughness: 0.9,
+      metalness: 0.05,
+    });
+
+    const skinMat = new THREE.MeshStandardMaterial({
+      color: 0xcccccc, // Pale skin
+      roughness: 0.8,
     });
 
     const eyeMat = new THREE.MeshStandardMaterial({
       color: 0xff0000,
       emissive: 0xff0000,
-      emissiveIntensity: 2.0,
+      emissiveIntensity: 3.0, // High glowing red eyes
     });
 
-    const torso = new THREE.Mesh(new THREE.CapsuleGeometry(0.35, 0.9, 4, 8), bodyMat);
-    torso.position.y = 1.0;
+    const clawMat = new THREE.MeshStandardMaterial({
+      color: 0x111111, // Dark claws
+      emissive: 0x440000,
+      roughness: 0.9,
+    });
+
+    const hairMat = new THREE.MeshStandardMaterial({
+      color: 0x050505, // Messy black hair
+      roughness: 0.95,
+    });
+
+    // 2. Dress/Body: cylinder/cone that expands at the bottom
+    const torso = new THREE.Mesh(new THREE.CylinderGeometry(0.18, 0.42, 1.2, 8), dressMat);
+    torso.position.y = 0.9;
     torso.castShadow = true;
     this.group.add(torso);
 
-    const head = new THREE.Mesh(new THREE.SphereGeometry(0.28, 8, 8), bodyMat);
-    head.position.y = 1.65;
-    head.castShadow = true;
-    this.group.add(head);
+    // 3. Head: pale sphere
+    this.headMesh = new THREE.Mesh(new THREE.SphereGeometry(0.24, 8, 8), skinMat);
+    this.headMesh.position.y = 1.6;
+    this.headMesh.castShadow = true;
+    this.group.add(this.headMesh);
 
-    const eyeGeo = new THREE.SphereGeometry(0.05, 6, 6);
+    // 4. Glowing Red Eyes (peeking through the hair)
+    const eyeGeo = new THREE.SphereGeometry(0.045, 6, 6);
     const eyeL = new THREE.Mesh(eyeGeo, eyeMat);
-    eyeL.position.set(-0.1, 1.68, 0.23);
+    eyeL.position.set(-0.08, 1.63, 0.2);
     const eyeR = new THREE.Mesh(eyeGeo, eyeMat);
-    eyeR.position.set(0.1, 1.68, 0.23);
+    eyeR.position.set(0.08, 1.63, 0.2);
     this.group.add(eyeL, eyeR);
 
-    const armGeo = new THREE.CapsuleGeometry(0.09, 0.7, 4, 6);
-    const armL = new THREE.Mesh(armGeo, bodyMat);
-    armL.position.set(-0.42, 0.95, 0);
-    armL.rotation.z = 0.2;
-    const armR = new THREE.Mesh(armGeo, bodyMat);
-    armR.position.set(0.42, 0.95, 0);
-    armR.rotation.z = -0.2;
-    this.group.add(armL, armR);
+    // 5. Messy Long Black Hair strands
+    this.hairStrands = [];
+    const hairCount = 24;
+    for (let i = 0; i < hairCount; i++) {
+      const angle = (i / hairCount) * Math.PI * 2;
+      const radius = 0.21;
+      const hx = Math.cos(angle) * radius;
+      const hz = Math.sin(angle) * radius;
+      
+      const strandLen = 0.65 + Math.random() * 0.45;
+      const hairGeo = new THREE.BoxGeometry(0.045, strandLen, 0.015);
+      const strand = new THREE.Mesh(hairGeo, hairMat);
+      
+      strand.position.set(hx, 1.6 - strandLen / 2 + 0.05, hz);
+      strand.rotation.y = angle;
+      
+      // Face-covering hair strands (z > 0)
+      if (hz > 0) {
+        strand.position.y -= 0.15; // hang lower to cover face
+        strand.scale.y = 1.4;
+        strand.rotation.x = 0.05 + Math.random() * 0.1;
+      } else {
+        strand.rotation.x = (Math.random() - 0.5) * 0.2;
+        strand.rotation.z = (Math.random() - 0.5) * 0.2;
+      }
+      
+      this.group.add(strand);
+      this.hairStrands.push(strand);
+    }
 
-    this.eyeGlow = new THREE.PointLight(0xff1111, 0.6, 3);
-    this.eyeGlow.position.set(0, 1.68, 0.2);
+    // 6. Jointed Pale Creepy Arms with Claws
+    this.armL = new THREE.Group();
+    this.armL.position.set(-0.32, 1.15, 0);
+    this.armR = new THREE.Group();
+    this.armR.position.set(0.32, 1.15, 0);
+
+    const upperArmL = new THREE.Mesh(new THREE.CylinderGeometry(0.045, 0.035, 0.55, 4), skinMat);
+    upperArmL.position.y = -0.275;
+    this.armL.add(upperArmL);
+
+    const upperArmR = new THREE.Mesh(new THREE.CylinderGeometry(0.045, 0.035, 0.55, 4), skinMat);
+    upperArmR.position.y = -0.275;
+    this.armR.add(upperArmR);
+
+    this.forearmL = new THREE.Group();
+    this.forearmL.position.set(0, -0.55, 0);
+    const forearmMeshL = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.025, 0.6, 4), skinMat);
+    forearmMeshL.position.y = -0.3;
+    this.forearmL.add(forearmMeshL);
+    this.armL.add(this.forearmL);
+
+    this.forearmR = new THREE.Group();
+    this.forearmR.position.set(0, -0.55, 0);
+    const forearmMeshR = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.025, 0.6, 4), skinMat);
+    forearmMeshR.position.y = -0.3;
+    this.forearmR.add(forearmMeshR);
+    this.armR.add(this.forearmR);
+
+    // Creepy claws
+    for (let f = 0; f < 4; f++) {
+      const fx = (f - 1.5) * 0.025;
+      const fingerL = new THREE.Mesh(new THREE.ConeGeometry(0.01, 0.22, 4), clawMat);
+      fingerL.position.set(fx, -0.65, 0.04);
+      fingerL.rotation.x = 0.6;
+      this.forearmL.add(fingerL);
+
+      const fingerR = new THREE.Mesh(new THREE.ConeGeometry(0.01, 0.22, 4), clawMat);
+      fingerR.position.set(fx, -0.65, 0.04);
+      fingerR.rotation.x = 0.6;
+      this.forearmR.add(fingerR);
+    }
+
+    this.group.add(this.armL, this.armR);
+
+    // 7. Dynamic eye light
+    this.eyeGlow = new THREE.PointLight(0xff0000, 1.2, 3);
+    this.eyeGlow.position.set(0, 1.63, 0.25);
     this.group.add(this.eyeGlow);
 
     this.scene.add(this.group);
@@ -139,11 +254,110 @@ export class Enemy {
 
     if (this.state === 'CHASE') {
       this._updateChase(delta, player);
+      
+      // Animate arms reaching forward to grab player
+      this.armL.rotation.x = THREE.MathUtils.lerp(this.armL.rotation.x, -Math.PI / 2.0, 0.15);
+      this.armR.rotation.x = THREE.MathUtils.lerp(this.armR.rotation.x, -Math.PI / 2.0, 0.15);
+      this.armL.rotation.y = THREE.MathUtils.lerp(this.armL.rotation.y, 0.1, 0.15);
+      this.armR.rotation.y = THREE.MathUtils.lerp(this.armR.rotation.y, -0.1, 0.15);
+
+      // Fast erratic shivering/twitching of arms
+      const twitch = (Math.random() - 0.5) * 0.2;
+      this.forearmL.rotation.z = twitch;
+      this.forearmR.rotation.z = -twitch;
+      this.forearmL.rotation.y = twitch * 0.5;
+      this.forearmR.rotation.y = -twitch * 0.5;
+      
+      // Fast body shivering and rotation twitching (glitching effect)
+      const time = performance.now();
+      this.group.position.y = Math.sin(time * 0.025) * 0.08 + (Math.random() - 0.5) * 0.02;
+      
+      if (Math.random() > 0.8) {
+        this.group.rotation.x = (Math.random() - 0.5) * 0.18;
+        this.group.rotation.z = (Math.random() - 0.5) * 0.18;
+        this.headMesh.position.x = (Math.random() - 0.5) * 0.05;
+      } else {
+        this.group.rotation.x = THREE.MathUtils.lerp(this.group.rotation.x, 0, 0.3);
+        this.group.rotation.z = THREE.MathUtils.lerp(this.group.rotation.z, 0, 0.3);
+        this.headMesh.position.x = THREE.MathUtils.lerp(this.headMesh.position.x, 0, 0.3);
+      }
     } else {
       this._updatePatrol(delta);
+
+      // Arms hanging down and swaying slowly
+      const time = performance.now();
+      const sway = Math.sin(time * 0.003) * 0.08;
+      this.armL.rotation.x = THREE.MathUtils.lerp(this.armL.rotation.x, sway, 0.05);
+      this.armR.rotation.x = THREE.MathUtils.lerp(this.armR.rotation.x, -sway, 0.05);
+      this.armL.rotation.z = THREE.MathUtils.lerp(this.armL.rotation.z, 0.06, 0.05);
+      this.armR.rotation.z = THREE.MathUtils.lerp(this.armR.rotation.z, -0.06, 0.05);
+      
+      this.forearmL.rotation.z = THREE.MathUtils.lerp(this.forearmL.rotation.z, 0, 0.05);
+      this.forearmR.rotation.z = THREE.MathUtils.lerp(this.forearmR.rotation.z, 0, 0.05);
+
+      // Calm, slow hover floating
+      this.group.position.y = Math.sin(time * 0.004) * 0.05;
+      this.group.rotation.x = THREE.MathUtils.lerp(this.group.rotation.x, 0, 0.1);
+      this.group.rotation.z = THREE.MathUtils.lerp(this.group.rotation.z, 0, 0.1);
+      this.headMesh.position.x = THREE.MathUtils.lerp(this.headMesh.position.x, 0, 0.1);
     }
 
-    this.group.position.y = Math.sin(performance.now() * 0.006) * 0.05;
+    // Update trail particles
+    this._updateTrailParticles(delta);
+  }
+
+  _updateTrailParticles(delta) {
+    if (!this.trailParticles) this.trailParticles = [];
+
+    // Spawn a particle
+    const spawnChance = this.state === 'CHASE' ? 0.45 : 0.75;
+    if (Math.random() > spawnChance) {
+      const pGeo = new THREE.BoxGeometry(0.04, 0.04, 0.04);
+      const isRed = Math.random() > 0.6;
+      const pMat = new THREE.MeshBasicMaterial({
+        color: isRed ? 0x770000 : 0x070707,
+        transparent: true,
+        opacity: 0.8,
+      });
+      const pMesh = new THREE.Mesh(pGeo, pMat);
+      
+      // Position around the ghost's torso/base
+      pMesh.position.copy(this.group.position);
+      pMesh.position.y += 0.2 + Math.random() * 1.2;
+      pMesh.position.x += (Math.random() - 0.5) * 0.45;
+      pMesh.position.z += (Math.random() - 0.5) * 0.45;
+      
+      this.scene.add(pMesh);
+      
+      this.trailParticles.push({
+        mesh: pMesh,
+        mat: pMat,
+        life: 0.8 + Math.random() * 0.4,
+        maxLife: 0.8 + Math.random() * 0.4,
+        velY: 0.15 + Math.random() * 0.25,
+        velX: (Math.random() - 0.5) * 0.1,
+        velZ: (Math.random() - 0.5) * 0.1,
+      });
+    }
+
+    // Update particles
+    for (let i = this.trailParticles.length - 1; i >= 0; i--) {
+      const p = this.trailParticles[i];
+      p.life -= delta;
+      
+      p.mesh.position.y += p.velY * delta;
+      p.mesh.position.x += p.velX * delta;
+      p.mesh.position.z += p.velZ * delta;
+      
+      p.mat.opacity = Math.max(0, p.life / p.maxLife);
+      
+      if (p.life <= 0) {
+        this.scene.remove(p.mesh);
+        p.mesh.geometry.dispose();
+        p.mat.dispose();
+        this.trailParticles.splice(i, 1);
+      }
+    }
   }
 
   _updateChase(delta, player) {
@@ -230,5 +444,13 @@ export class Enemy {
   dispose() {
     this.scene.remove(this.group);
     this.scene.remove(this.debugLine);
+    if (this.trailParticles) {
+      for (const p of this.trailParticles) {
+        this.scene.remove(p.mesh);
+        p.mesh.geometry.dispose();
+        p.mat.dispose();
+      }
+      this.trailParticles = [];
+    }
   }
 }
